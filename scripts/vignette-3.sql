@@ -5,9 +5,9 @@ Copyright(c): 2025 Snowflake Inc. All rights reserved.
 ****************************************************************************************************
 
 AI SQL 関数
-1. SENTIMENT() を使用してトラックの顧客レビューをポジティブ・ネガティブ・ニュートラルにスコアリングおよびラベリングする
+1. AI_SENTIMENT() を使用してトラックの顧客レビューをポジティブ・ネガティブ・ニュートラルにスコアリングおよびラベリングする
 2. AI_CLASSIFY() を使用して食品品質やサービス体験などのテーマでレビューを分類する
-3. EXTRACT_ANSWER() を使用してレビューテキストから具体的な苦情や称賛を抽出する
+3. AI_EXTRACT() を使用してレビューテキストから具体的な苦情や称賛を抽出する
 4. AI_SUMMARIZE_AGG() を使用してトラックブランド名ごとの顧客センチメントのクイックサマリーを生成する
 
 ****************************************************************************************************/
@@ -29,7 +29,7 @@ USE WAREHOUSE tb_analyst_wh;
     どのトラックが最もパフォーマンスが高いかを特定し、
     フリート全体の顧客満足度指標を作成します。
     Cortex Playground では個別のレビューを手動で分析しました。
-    次に SENTIMENT() 関数を使用して、Snowflake の公式センチメント範囲に従い、
+    次に AI_SENTIMENT() 関数を使用して、Snowflake の公式センチメント範囲に従い、
     顧客レビューを -1（ネガティブ）から +1（ポジティブ）で自動的にスコアリングします。
     ***************************************************************/
 
@@ -45,7 +45,7 @@ SELECT
 FROM (
     SELECT
         truck_brand_name,
-        SNOWFLAKE.CORTEX.SENTIMENT (review) AS sentiment
+        AI_SENTIMENT(review) AS sentiment
     FROM harmonized.truck_reviews_v
     WHERE
         language ILIKE '%en%'
@@ -59,7 +59,7 @@ ORDER BY total_reviews DESC;
 /*
     重要なインサイト:
         Cortex Playground での1件ずつの分析から、数千件の体系的な処理への移行に注目してください。
-        SENTIMENT() 関数は自動的にすべてのレビューをスコアリングし、
+        AI_SENTIMENT() 関数は自動的にすべてのレビューをスコアリングし、
         ポジティブ・ネガティブ・ニュートラルに分類することで、
         フリート全体の顧客満足度指標を瞬時に提供します。
     センチメントスコアの範囲:
@@ -120,7 +120,7 @@ ORDER BY
 
 /* 3. 具体的な運用インサイトの抽出
     ***************************************************************
-    次に、非構造化テキストから正確な回答を得るために、EXTRACT_ANSWER() 関数を使用します。
+    次に、非構造化テキストから正確な回答を得るために、AI_EXTRACT() 関数を使用します。
     この強力な関数により、顧客フィードバックに対して特定のビジネス上の質問をし、
     直接的な回答を受け取ることができます。
     このステップでは、顧客レビューに記載された具体的な運用上の問題を特定し、
@@ -134,7 +134,7 @@ ORDER BY
     truck_brand_name,
     primary_city,
     LEFT(review, 100) || '...' AS review_preview,
-    SNOWFLAKE.CORTEX.EXTRACT_ANSWER(
+    AI_EXTRACT(
         review,
         'What specific improvement or complaint is mentioned in this review?'
     ) AS specific_feedback
@@ -149,7 +149,7 @@ LIMIT 10000;
 
 /*
     重要なインサイト:
-        EXTRACT_ANSWER() が長い顧客レビューから具体的で実行可能なインサイトを抽出することに注目してください。
+        AI_EXTRACT() が長い顧客レビューから具体的で実行可能なインサイトを抽出することに注目してください。
         手動でのレビューの代わりに、この関数は「フレンドリーなスタッフが救いだった」や
         「ホットドッグが完璧に調理されている」などの具体的なフィードバックを自動的に識別します。
         結果として、密度の高いテキストをオペレーションチームが即座に活用できる
@@ -158,7 +158,7 @@ LIMIT 10000;
 
 /* 4. エグゼクティブサマリーの生成
     ***************************************************************
-    最後に、顧客フィードバックの簡潔なサマリーを作成するために SUMMARIZE() 関数を使用します。
+    最後に、顧客フィードバックの簡潔なサマリーを作成するために AI_SUMMARIZE_AGG() 関数を使用します。
     この強力な関数は、長い非構造化テキストから短くまとまったサマリーを生成します。
     このステップでは、各トラックブランドの顧客レビューのエッセンスを
     読みやすいサマリーに抽出し、全体的なセンチメントと重要ポイントの
@@ -170,7 +170,8 @@ LIMIT 10000;
 
 SELECT
   truck_brand_name,
-  AI_SUMMARIZE_AGG (review) AS review_summary
+  AI_SUMMARIZE_AGG(review) AS review_summary,
+  AI_TRANSLATE(AI_SUMMARIZE_AGG(review), 'en', 'ja') AS review_summary_ja
 FROM
   (
     SELECT
