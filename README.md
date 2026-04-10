@@ -1182,17 +1182,18 @@ Snowsight で Cortex Analyst に移動し、セマンティックモデルの基
 
     * ロールを `TB_DEV` に変更します。
     * ウェアハウスを `TB_CORTEX_WH` に設定します。
-    * **Create new model** をクリックします。
+
+3. **Create with Copilot** ボタンをクリックします。
+
+4. 次の画面で **Skip** をクリックします。
 
 ![assets/vignette-3/cortex-analyst-setup.png](assets/vignette-3/cortex-analyst-setup.png)
 
+5.  **Getting Started** ページで以下を設定します：
 
-3.  **Getting Started** ページで以下を設定します：
-
+      * **Name**: `tasty_bytes_business_analytics`
       * **DATABASE**: `TB_101`
       * **SCHEMA**: `SEMANTIC_LAYER`
-      * **Name**: `tasty_bytes_business_analytics`
-      * **Description**: `Semantic model for Tasty Bytes executive analytics, covering customer loyalty and order performance data for natural language querying`
       * **Next** をクリックします。
 
 ![assets/vignette-3/cortex-analyst-getting-started.png](assets/vignette-3/cortex-analyst-getting-started.png)
