@@ -1466,6 +1466,26 @@ You are a business intelligence analyst for Tasty Bytes food trucks. When analyz
 
 統合インテリジェンスエージェントが、Snowflake Intelligence インターフェースを通じた会話型ビジネスインテリジェンスの提供に対応できるようになりました。
 
+> **注意：** エージェントを Snowflake Intelligence に追加しようとした際に以下のエラーが表示された場合は、次の手順を実行してください。
+> `You do not have MODIFY privilege to add agents to Snowflake Intelligence. Contact your administrator to grant you the necessary privileges.`
+>
+> **Snowflake Intelligence にエージェントを追加する手順**
+>
+> **前提条件：** `ACCOUNTADMIN` ロールで実行すること
+>
+> Snowsight の **Cortex Code** を開き、以下の SQL を実行します。
+>
+> **1. Snowflake Intelligence オブジェクトの作成：**
+> ```sql
+> CREATE SNOWFLAKE INTELLIGENCE SNOWFLAKE_INTELLIGENCE_OBJECT_DEFAULT;
+> ```
+>
+> **2. エージェントの追加：**
+> ```sql
+> ALTER SNOWFLAKE INTELLIGENCE SNOWFLAKE_INTELLIGENCE_OBJECT_DEFAULT
+>   ADD AGENT SNOWFLAKE_INTELLIGENCE.AGENTS.TASTY_BYTES_INTELLIGENCE_AGENT;
+> ```
+
 -----
 
 #### ステップ 3 - Snowflake Intelligence インターフェースへのアクセス
