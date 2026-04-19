@@ -667,3 +667,9 @@ GRANT USAGE ON SCHEMA snowflake_intelligence.agents TO ROLE TB_DEV;
 
 -- agents スキーマに対して CREATE AGENT 権限を付与する
 GRANT CREATE AGENT ON SCHEMA snowflake_intelligence.agents TO ROLE TB_DEV;
+
+-- GitHub との API 統合を作成する
+CREATE OR REPLACE API INTEGRATION git_api_integration
+    API_PROVIDER = git_https_api
+    API_ALLOWED_PREFIXES = ('https://github.com/sfc-gh-kshimada/')
+    ENABLED = TRUE;
