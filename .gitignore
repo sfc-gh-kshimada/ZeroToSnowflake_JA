@@ -25,3 +25,9 @@ venv/
 
 # 英語版ソースファイル
 README_EN.md
+
+# Directory placeholders
+.folder
+
+# Snowflake Cortex Code (IDE設定・会話履歴)
+.snowflake/
