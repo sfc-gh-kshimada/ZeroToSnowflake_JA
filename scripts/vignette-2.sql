@@ -108,7 +108,7 @@ SELECT menu_item_health_metrics_obj FROM raw_pos.menu_staging;
 */
 SELECT
     menu_item_name,
-    CAST(menu_item_health_metrics_obj:menu_item_id AS INTEGER) AS menu_item_id, -- 'AS' を使用したキャスト
+    CAST(menu_item_health_metrics_obj:menu_item_id AS INTEGER) AS menu_item_id, -- CAST関数 を使用したキャスト
     menu_item_health_metrics_obj:menu_item_health_metrics[0]:ingredients::ARRAY AS ingredients -- ダブルコロン（::）構文を使用したキャスト
 FROM raw_pos.menu_staging;
 
@@ -179,7 +179,7 @@ SELECT * FROM harmonized.ingredient;
     いくつかの新しい材料が含まれています。
     
     ダイナミックテーブルの自動更新機能により、menu_staging テーブルにこの新しいメニューアイテムを
-    追加するだけで、ingredients テーブルに自動的に反映されます。
+    追加するだけで、ingredient テーブルに自動的に反映されます。
 */
 INSERT INTO raw_pos.menu_staging 
 SELECT 
@@ -214,7 +214,7 @@ SELECT
 );
 
 /*
-    French Baguette と Pickled Daikon が ingredients テーブルに表示されていることを確認します。
+    French Baguette と Pickled Daikon が ingredient テーブルに表示されていることを確認します。
     「クエリが結果を返しませんでした」と表示される場合、ダイナミックテーブルがまだ更新されていません。
     ダイナミックテーブルのラグ設定に追いつくまで最大1分待ってください。
 */
@@ -331,7 +331,7 @@ CREATE OR REPLACE DYNAMIC TABLE harmonized.ingredient_usage_by_truck
 SELECT
     truck_id,
     ingredient_name,
-    SUM(total_ingredients_used) AS total_ingredients_used,
+    SUM(total_ingredients_used) AS total_ingredients_used
 FROM
     harmonized.ingredient_usage_by_truck
 WHERE
@@ -349,7 +349,7 @@ ORDER BY total_ingredients_used DESC;
     必要に応じてテーブルを手動で更新したりすることもできます。
 
     DAG へのアクセス方法:
-    - ナビゲーションメニューの「カタログ」ボタンをクリックしてデータベース画面を開く
+    - ナビゲーションメニューの「カタログ」をマウスオーバーし、「データベースエクスプローラー」ボタンをクリックしてデータベース画面を開く
     - 「TB_101」の横の矢印「>」をクリックしてデータベースを展開する
     - 「HARMONIZED」を展開し、「ダイナミックテーブル」を展開する
     - 「INGREDIENT」テーブルをクリックする
