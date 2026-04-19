@@ -18,7 +18,7 @@ Snowflake 入門
 -- 開始前に、このクエリを実行してセッションのクエリタグを設定してください。
 ALTER SESSION SET query_tag = '{"origin":"sf_sit-is","name":"tb_zts","version":{"major":1, "minor":1},"attributes":{"is_quickstart":1, "source":"tastybytes", "vignette": "getting_started_with_snowflake"}}';
 
--- ワークシートのコンテキストを設定します。データベース、スキーマ、ロールを設定します。
+-- ワークシートのコンテキストを設定します。データベース、ロールを設定します。
 
 USE DATABASE tb_101;
 USE ROLE accountadmin;
@@ -26,7 +26,7 @@ USE ROLE accountadmin;
 /*   1. 仮想ウェアハウスと設定
     **************************************************************
      ユーザーガイド:
-     https://docs.snowflake.com/en/user-guide/warehouses-overview
+     https://docs.snowflake.com/ja/user-guide/warehouses-overview
     **************************************************************
     
     仮想ウェアハウスは、Snowflake データに対して分析を実行するための
@@ -65,7 +65,7 @@ SHOW WAREHOUSES;
     ウェアハウスとその属性（名前、状態（実行中またはサスペンド）、タイプ、サイズなど）の一覧が表示されます。
     
     Snowsight でもすべてのウェアハウスを表示・管理できます。ウェアハウスページにアクセスするには、
-    ナビゲーションメニューの「管理」ボタンをクリックし、展開された管理カテゴリの「ウェアハウス」リンクをクリックします。
+    ナビゲーションメニューの「管理」欄の「コンピュート」へマウスオーバーし、展開された管理カテゴリの「ウェアハウス」リンクをクリックします。
     
     ウェアハウスページには、アカウント上のウェアハウスとその属性の一覧が表示されます。
 */
@@ -126,6 +126,15 @@ SELECT * FROM raw_pos.truck_details;
 */
 ALTER WAREHOUSE my_wh SET warehouse_size = 'XLarge';
 
+/*
+    補足 - Adaptive Warehouse（Public Preview）
+    ウェアハウスサイズの選択が不要な Adaptive Warehouse が現在 Public Preview として提供されています。
+    ワークロードに応じてコンピュートリソースを自動的に最適化するため、サイズ選択の手間がなくなります。
+
+    公式ドキュメント: https://docs.snowflake.com/ja/user-guide/warehouses-adaptive
+    参考記事: https://dev.classmethod.jp/articles/snowflake-try-adaptive-warehouse/
+*/
+
 -- トラック別の売上を確認しましょう
 SELECT
     o.truck_brand_name,
@@ -152,7 +161,7 @@ ORDER BY total_sales DESC;
 /*  2. クエリ結果キャッシュの活用
     *******************************************************************
     ユーザーガイド:
-    https://docs.snowflake.com/en/user-guide/querying-persisted-results
+    https://docs.snowflake.com/ja/user-guide/querying-persisted-results
     *******************************************************************
     
     次に進む前に、Snowflake のもう一つの強力な機能を紹介します:
@@ -183,7 +192,7 @@ ALTER WAREHOUSE my_wh SET warehouse_size = 'XSmall';
     しかし、この情報は VARIANT データ型で年式、メーカー、モデルの情報が格納されている
     'truck_build' カラムに埋め込まれています。
 
-    VARIANT データ型は半構造化データの一例です。OBJECT、ARRAY などあらゆるデータ型を格納できます。
+    VARIANT データ型は半構造化データの一例です。OBJECT、ARRAY、他のVARIANT値などあらゆるデータ型を格納できます。
     今回の場合、truck_build には year、make、model の3つの VARCHAR 値を持つ単一の OBJECT が格納されています。
     
     これら3つのプロパティをそれぞれ独立したカラムに分離することで、
@@ -323,7 +332,7 @@ DROP TABLE raw_pos.truck_dev;
 /*  5. リソースモニター
     ***********************************************************
     ユーザーガイド:                                   
-    https://docs.snowflake.com/en/user-guide/resource-monitors
+    https://docs.snowflake.com/ja/user-guide/resource-monitors
     ***********************************************************
 
     コンピュートの使用量と支出の監視は、クラウドベースのワークフローにとって重要です。
@@ -368,7 +377,7 @@ ALTER WAREHOUSE my_wh
 /*  6. 予算管理（Budgets）
     ****************************************************
       ユーザーガイド:                                   
-      https://docs.snowflake.com/en/user-guide/budgets 
+      https://docs.snowflake.com/ja/user-guide/budgets 
     ****************************************************
       
     前のステップでは、ウェアハウスのクレジット使用量を監視するリソースモニターを設定しました。
@@ -390,7 +399,7 @@ CREATE OR REPLACE SNOWFLAKE.CORE.BUDGET my_budget()
     メールアドレスを確認するには:
     - 画面左下のユーザーアイコンをクリックする
     - 「設定」をクリックする
-    - メールフィールドにメールアドレスを入力する
+    - **プロファイル** をクリックし、メールフィールドにメールアドレスを入力する
     - 「保存」をクリックする
     - メールを確認し、指示に従ってメールアドレスを確認する
         注: 数分経ってもメールが届かない場合は、「確認メールを再送信」をクリックしてください
@@ -399,7 +408,7 @@ CREATE OR REPLACE SNOWFLAKE.CORE.BUDGET my_budget()
     Snowsight の予算ページに移動してリソースを予算に追加しましょう。
 
     Snowsight の予算ページへのアクセス方法:
-    - ナビゲーションメニューの「管理」ボタンをクリックする
+    - ナビゲーションメニューの「管理者」ボタンをクリックする
     - 最初の項目「コスト管理」をクリックする
     - 「予算」タブをクリックする
     
@@ -417,20 +426,20 @@ CREATE OR REPLACE SNOWFLAKE.CORE.BUDGET my_budget()
     「編集」ボタンをクリックして予算の編集パネルを開きます。
     
     - 予算名はそのまま
-    - 支出限度額を 100 に設定する
-    - 先ほど確認したメールアドレスを入力する
-    - 「+ タグ & リソース」ボタンをクリックしてリソースを追加する
+    - 予算 を 100 に設定する
+    - 先ほど確認したメールアドレスを入力し、「次へ」をクリックする
+    - 「リソース」ボタンをクリックしてリソースを追加する
     - 「データベース」→「TB_101」を展開し、「ANALYTICS」スキーマのチェックボックスをオンにする
-    - 下にスクロールして「ウェアハウス」を展開する
+    - さらに「ウェアハウス」を展開する
     - 「TB_DE_WH」のチェックボックスをオンにする
-    - 「完了」をクリックする
-    - 予算の編集メニューに戻り、「変更を保存」をクリックする
+    - 「次へ」をクリックする
+    - 予算の編集メニューに戻り、「保存」をクリックする
 */
 
 /*  7. ユニバーサルサーチ
     **************************************************************************
       ユーザーガイド                                                             
-      https://docs.snowflake.com/en/user-guide/ui-snowsight-universal-search  
+      https://docs.snowflake.com/ja/user-guide/ui-snowsight-universal-search  
     **************************************************************************
 
     ユニバーサルサーチを使用すると、アカウント内の任意のオブジェクトを簡単に検索できるほか、

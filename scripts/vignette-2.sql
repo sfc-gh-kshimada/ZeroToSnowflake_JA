@@ -26,7 +26,7 @@ USE WAREHOUSE tb_de_wh;
 /*  1. 外部ステージからのデータ取り込み
     ***************************************************************
     SQL リファレンス:
-    https://docs.snowflake.com/en/sql-reference/sql/copy-into-table
+    https://docs.snowflake.com/ja/sql-reference/sql/copy-into-table
     ***************************************************************
 
     現在、データは CSV 形式で Amazon S3 バケットに保存されています。
@@ -73,7 +73,7 @@ SELECT * FROM raw_pos.menu_staging;
 /*  2. Snowflake における半構造化データ
     *********************************************************************
     ユーザーガイド:
-    https://docs.snowflake.com/en/sql-reference/data-types-semistructured
+    https://docs.snowflake.com/ja/sql-reference/data-types-semistructured
     *********************************************************************
     
     Snowflake は VARIANT データ型を使用して JSON などの半構造化データの処理に優れています。
@@ -129,7 +129,7 @@ FROM
 /*  3. ダイナミックテーブル（Dynamic Tables）
     **************************************************************
     ユーザーガイド:
-    https://docs.snowflake.com/en/user-guide/dynamic-tables-about
+    https://docs.snowflake.com/ja/user-guide/dynamic-tables-about
     **************************************************************
     
     すべての材料を構造化フォーマットで保存して、個別にクエリ・フィルタリング・
