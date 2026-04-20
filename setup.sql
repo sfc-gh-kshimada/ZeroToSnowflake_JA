@@ -622,27 +622,8 @@ AS
 SELECT * EXCLUDE (year, make, model)
 FROM tb_101.raw_pos.truck;
 
--- 'tasty_bytes_review_search' という名前の Cortex Search サービスを作成する。
-CREATE OR REPLACE CORTEX SEARCH SERVICE tb_101.harmonized.tasty_bytes_review_search
-ON REVIEW 
-ATTRIBUTES LANGUAGE, ORDER_ID, REVIEW_ID, TRUCK_BRAND_NAME, PRIMARY_CITY, DATE, SOURCE 
-WAREHOUSE = tb_de_wh
-TARGET_LAG = '1 hour' 
-AS (
-    SELECT
-        REVIEW,             
-        LANGUAGE,           
-        ORDER_ID,           
-        REVIEW_ID,          
-        TRUCK_BRAND_NAME,  
-        PRIMARY_CITY,       
-        DATE,               
-        SOURCE             
-    FROM
-        tb_101.harmonized.truck_reviews_v 
-    WHERE
-        REVIEW IS NOT NULL 
-);
+-- Snowflake Intelligence オブジェクトを作成する (CREATE SNOWFLAKE INTELLIGENCE ON ACCOUNT 権限が必要)
+CREATE SNOWFLAKE INTELLIGENCE SNOWFLAKE_INTELLIGENCE_OBJECT_DEFAULT;
 
 USE ROLE securityadmin;
 -- セマンティックレイヤーへの追加権限付与
