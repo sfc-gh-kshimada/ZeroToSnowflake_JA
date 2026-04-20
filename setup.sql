@@ -622,7 +622,7 @@ AS
 SELECT * EXCLUDE (year, make, model)
 FROM tb_101.raw_pos.truck;
 
--- Snowflake Intelligence オブジェクトを作成する (CREATE SNOWFLAKE INTELLIGENCE ON ACCOUNT 権限が必要)
+-- Snowflake Intelligence オブジェクトを作成する
 CREATE SNOWFLAKE INTELLIGENCE SNOWFLAKE_INTELLIGENCE_OBJECT_DEFAULT;
 
 USE ROLE securityadmin;
