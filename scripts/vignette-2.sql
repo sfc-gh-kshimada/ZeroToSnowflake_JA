@@ -356,23 +356,3 @@ ORDER BY total_ingredients_used DESC;
     - 「グラフ」タブをクリックする
 */
 
--------------------------------------------------------------------------
---RESET--
--------------------------------------------------------------------------
-USE ROLE accountadmin;
--- ダイナミックテーブルをドロップする
-DROP TABLE IF EXISTS raw_pos.menu_staging;
-DROP TABLE IF EXISTS harmonized.ingredient;
-DROP TABLE IF EXISTS harmonized.ingredient_to_menu_lookup;
-DROP TABLE IF EXISTS harmonized.ingredient_usage_by_truck;
-
--- 挿入データを削除する
-DELETE FROM raw_pos.order_detail
-WHERE order_detail_id = 904745311;
-DELETE FROM raw_pos.order_header
-WHERE order_id = 459520441;
-
--- クエリタグを解除する
-ALTER SESSION UNSET query_tag;
--- ウェアハウスをサスペンドする
-ALTER WAREHOUSE tb_de_wh SUSPEND;

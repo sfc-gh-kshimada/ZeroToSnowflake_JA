@@ -465,19 +465,3 @@ CREATE OR REPLACE SNOWFLAKE.CORE.BUDGET my_budget()
     優れた出発点となります。
 */
 
--------------------------------------------------------------------------
---RESET--
--------------------------------------------------------------------------
--- 作成したオブジェクトをドロップする
-DROP RESOURCE MONITOR IF EXISTS my_resource_monitor;
-DROP TABLE IF EXISTS raw_pos.truck_dev;
-
--- truck_details をリセットする
-CREATE OR REPLACE TABLE raw_pos.truck_details
-AS 
-SELECT * EXCLUDE (year, make, model)
-FROM raw_pos.truck;
-
-DROP WAREHOUSE IF EXISTS my_wh;
--- クエリタグを解除する
-ALTER SESSION UNSET query_tag;
