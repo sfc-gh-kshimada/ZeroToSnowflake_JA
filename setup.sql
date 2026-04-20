@@ -221,11 +221,6 @@ COMMENT = 'トラックレビュー用ステージ'
 url = 's3://sfquickstarts/tastybytes-voc/'
 file_format = tb_101.public.csv_ff;
 
--- このステージはYAMLファイルのアップロードに使用します。
-CREATE OR REPLACE STAGE tb_101.semantic_layer.semantic_model_stage
-  DIRECTORY = (ENABLE = TRUE)
-  COMMENT = 'Cortex Analyst セマンティックモデルのYAMLファイルをアップロードするための内部ステージ。';
-
 /*--
  RAW ゾーン テーブルの作成
 --*/
@@ -622,15 +617,10 @@ AS
 SELECT * EXCLUDE (year, make, model)
 FROM tb_101.raw_pos.truck;
 
--- Snowflake Intelligence オブジェクトを作成する
-CREATE SNOWFLAKE INTELLIGENCE SNOWFLAKE_INTELLIGENCE_OBJECT_DEFAULT;
-
 USE ROLE securityadmin;
 -- セマンティックレイヤーへの追加権限付与
 GRANT SELECT ON VIEW tb_101.semantic_layer.orders_v TO ROLE PUBLIC;
 GRANT SELECT ON VIEW tb_101.semantic_layer.customer_loyalty_metrics_v TO ROLE PUBLIC;
-GRANT READ ON STAGE tb_101.semantic_layer.semantic_model_stage TO ROLE tb_admin;
-GRANT WRITE ON STAGE tb_101.semantic_layer.semantic_model_stage TO ROLE tb_admin;
 
 -- 参加者アカウントの設定 パート3
 USE ROLE ACCOUNTADMIN;
@@ -654,3 +644,6 @@ CREATE OR REPLACE API INTEGRATION git_api_integration
     API_PROVIDER = git_https_api
     API_ALLOWED_PREFIXES = ('https://github.com/sfc-gh-kshimada/')
     ENABLED = TRUE;
+
+-- Snowflake Intelligence オブジェクトを作成する
+CREATE SNOWFLAKE INTELLIGENCE SNOWFLAKE_INTELLIGENCE_OBJECT_DEFAULT;
