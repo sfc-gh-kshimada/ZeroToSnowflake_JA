@@ -196,7 +196,7 @@ FUNCTION_DOCS = {
     "AI_SUMMARIZE_AGG": {
         "description": "テキスト列やまとまった長文を集約して要約します（モデルのコンテキストウィンドウより大きいデータにも対応）。",
         "doc_url": "https://docs.snowflake.com/en/sql-reference/functions/ai_summarize_agg",
-        "usage": "SELECT SNOWFLAKE.CORTEX.AI_SUMMARIZE_AGG('<text>') AS result\n-- 列に対する集約:\nSELECT AI_SUMMARIZE_AGG(review_text) FROM reviews;",
+        "usage": "SELECT AI_SUMMARIZE_AGG('<text>') AS result\n-- 列に対する集約:\nSELECT AI_SUMMARIZE_AGG(review_text) FROM reviews;",
         "examples": [
             {
                 "name": "長文ニュース記事要約",
@@ -764,7 +764,7 @@ def render_ai_summarize():
             if text:
                 with st.spinner("実行中..."):
                     escaped_text = text.replace("'", "''")
-                    sql = f"SELECT SNOWFLAKE.CORTEX.AI_SUMMARIZE_AGG('{escaped_text}') AS result"
+                    sql = f"SELECT AI_SUMMARIZE_AGG('{escaped_text}') AS result"
                     result, err = run_ai_sql(sql)
                     if err:
                         st.error(f"エラー: {err}")
