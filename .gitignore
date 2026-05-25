@@ -31,3 +31,4 @@ README_EN.md
 
 # Snowflake Cortex Code (IDE設定・会話履歴)
 .snowflake/
+logs/

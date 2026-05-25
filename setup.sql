@@ -732,7 +732,7 @@ GRANT USAGE ON INTEGRATION tb_pypi_access_integration TO ROLE tb_data_engineer;
 
 -- Streamlit アプリの作成 (コンテナランタイム / tb_compute_pool 上) — accountadmin が所有者
 CREATE OR REPLACE STREAMLIT tb_101.public.ai_functions_playground
-    FROM '@tb_101.public.ztsja_repo/branches/main'
+    FROM '@tb_101.public.ztsja_repo/branches/main/streamlit_apps/ai_functions_playground'
     MAIN_FILE = 'ai_functions_playground.py'
     RUNTIME_NAME = 'SYSTEM$ST_CONTAINER_RUNTIME_PY3_11'
     COMPUTE_POOL = tb_compute_pool
