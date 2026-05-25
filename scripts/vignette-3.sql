@@ -110,6 +110,13 @@ CALL governance.tb_classification_profile!SET_TAG_MAP(
       'semantic_categories':['NAME', 'PHONE_NUMBER', 'POSTAL_CODE', 'DATE_OF_BIRTH', 'CITY', 'EMAIL']
     }]});
 
+
+-- スキーマまたはデータベースに適用
+-- データベース全体に適用する場合：
+-- ALTER DATABASE tb_101 SET CLASSIFICATION_PROFILE = 'tb_101.governance.tb_classification_profile';
+-- 特定スキーマに適用する場合：
+-- ALTER SCHEMA tb_101.raw_customer SET CLASSIFICATION_PROFILE = 'tb_101.governance.tb_classification_profile';
+
 -- customer_loyalty テーブルを自動分類 (実行に数秒かかります)
 CALL SYSTEM$CLASSIFY('tb_101.raw_customer.customer_loyalty', 'tb_101.governance.tb_classification_profile');
 
@@ -259,7 +266,7 @@ SELECT
     tag_name,
     tag_value
 FROM TABLE(
-    tb_101.INFORMATION_SCHEMA.TAG_REFERENCES_ALL_COLUMNS('tb_101.governance.customer_pii_downstream_v', 'VIEW')
+    tb_101.INFORMATION_SCHEMA.TAG_REFERENCES_ALL_COLUMNS('tb_101.governance.customer_pii_downstream_v', 'TABLE')
 );
 
 -- 既存の harmonized.customer_loyalty_metrics_v でも同様に伝播していることを確認
@@ -269,7 +276,7 @@ SELECT
     tag_name,
     tag_value
 FROM TABLE(
-    tb_101.INFORMATION_SCHEMA.TAG_REFERENCES_ALL_COLUMNS('tb_101.harmonized.customer_loyalty_metrics_v', 'VIEW')
+    tb_101.INFORMATION_SCHEMA.TAG_REFERENCES_ALL_COLUMNS('tb_101.harmonized.customer_loyalty_metrics_v', 'TABLE')
 );
 
 -- ACCOUNT_USAGE 経由で伝播状況を見たい場合 (遅延あり)
