@@ -663,7 +663,8 @@ CREATE OR REPLACE SNOWFLAKE INTELLIGENCE SNOWFLAKE_INTELLIGENCE_OBJECT_DEFAULT;
  • Cortex AI Playground (Streamlit on SPCS) のセットアップ
 --*/
 
-USE ROLE sysadmin;
+-- 全リソース (ステージ / テーブル / Git Repo / Network Rule / EAI / Streamlit) は accountadmin で作成
+USE ROLE accountadmin;
 USE DATABASE tb_101;
 USE SCHEMA public;
 
@@ -693,7 +694,6 @@ CREATE OR REPLACE GIT REPOSITORY tb_101.public.ztsja_repo
 ALTER GIT REPOSITORY tb_101.public.ztsja_repo FETCH;
 
 -- コンピュートプール使用権限の付与
-USE ROLE accountadmin;
 GRANT USAGE, MONITOR ON COMPUTE POOL tb_compute_pool TO ROLE sysadmin;
 GRANT USAGE, MONITOR ON COMPUTE POOL tb_compute_pool TO ROLE tb_admin;
 GRANT USAGE ON COMPUTE POOL tb_compute_pool TO ROLE tb_data_engineer;
@@ -704,7 +704,6 @@ GRANT DATABASE ROLE SNOWFLAKE.CORTEX_USER TO ROLE tb_admin;
 GRANT DATABASE ROLE SNOWFLAKE.CORTEX_USER TO ROLE tb_data_engineer;
 
 -- ステージ・メタデータテーブルへのアクセス権限
-USE ROLE securityadmin;
 GRANT READ, WRITE ON STAGE tb_101.public.ai_playground_files TO ROLE tb_dev;
 GRANT READ, WRITE ON STAGE tb_101.public.ai_playground_files TO ROLE tb_data_engineer;
 GRANT READ, WRITE ON STAGE tb_101.public.ai_playground_files TO ROLE tb_admin;
@@ -717,7 +716,6 @@ GRANT READ ON GIT REPOSITORY tb_101.public.ztsja_repo TO ROLE tb_dev;
 GRANT READ ON GIT REPOSITORY tb_101.public.ztsja_repo TO ROLE tb_data_engineer;
 
 -- PyPI 用 External Access Integration (コンテナランタイムの依存解決に必要)
-USE ROLE accountadmin;
 CREATE OR REPLACE NETWORK RULE tb_101.public.pypi_network_rule
     MODE = EGRESS
     TYPE = HOST_PORT
@@ -732,8 +730,7 @@ GRANT USAGE ON INTEGRATION tb_pypi_access_integration TO ROLE sysadmin;
 GRANT USAGE ON INTEGRATION tb_pypi_access_integration TO ROLE tb_admin;
 GRANT USAGE ON INTEGRATION tb_pypi_access_integration TO ROLE tb_data_engineer;
 
--- Streamlit アプリの作成 (コンテナランタイム / tb_compute_pool 上)
-USE ROLE sysadmin;
+-- Streamlit アプリの作成 (コンテナランタイム / tb_compute_pool 上) — accountadmin が所有者
 CREATE OR REPLACE STREAMLIT tb_101.public.ai_functions_playground
     FROM '@tb_101.public.ztsja_repo/branches/main'
     MAIN_FILE = 'ai_functions_playground.py'
@@ -748,6 +745,5 @@ CREATE OR REPLACE STREAMLIT tb_101.public.ai_functions_playground
 ALTER STREAMLIT tb_101.public.ai_functions_playground ADD LIVE VERSION FROM LAST;
 
 -- Streamlit アプリへの利用権限
-USE ROLE securityadmin;
 GRANT USAGE ON STREAMLIT tb_101.public.ai_functions_playground TO ROLE tb_dev;
 GRANT USAGE ON STREAMLIT tb_101.public.ai_functions_playground TO ROLE tb_data_engineer;
