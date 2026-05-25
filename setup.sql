@@ -87,6 +87,9 @@ CREATE COMPUTE POOL IF NOT EXISTS tb_compute_pool
     AUTO_SUSPEND_SECS = 36000  -- 10時間 (TTL)
     COMMENT = 'Tasty Bytes 用 XS コンピュートプール (min 3 nodes, 10h TTL)';
 
+-- Streamlit のデフォルトコンピュートプールを設定
+ALTER ACCOUNT SET DEFAULT_STREAMLIT_COMPUTE_POOL = 'tb_compute_pool';
+
 -- ロールを作成する
 USE ROLE securityadmin;
 
