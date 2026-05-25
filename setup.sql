@@ -76,6 +76,17 @@ CREATE OR REPLACE WAREHOUSE tb_cortex_wh
     INITIALLY_SUSPENDED = TRUE
 COMMENT = 'Cortex Analyst およびその他の分析ツール専用のラージウェアハウス。';
 
+-- コンピュートプール（Snowpark Container Services 用）の作成
+USE ROLE accountadmin;
+
+CREATE COMPUTE POOL IF NOT EXISTS tb_compute_pool
+    MIN_NODES = 3
+    MAX_NODES = 3
+    INSTANCE_FAMILY = CPU_X64_XS
+    AUTO_RESUME = TRUE
+    AUTO_SUSPEND_SECS = 36000  -- 10時間 (TTL)
+    COMMENT = 'Tasty Bytes 用 XS コンピュートプール (min 3 nodes, 10h TTL)';
+
 -- ロールを作成する
 USE ROLE securityadmin;
 
@@ -646,4 +657,80 @@ CREATE OR REPLACE API INTEGRATION git_api_integration
     ENABLED = TRUE;
 
 -- Snowflake Intelligence オブジェクトを作成する
-CREATE SNOWFLAKE INTELLIGENCE SNOWFLAKE_INTELLIGENCE_OBJECT_DEFAULT;
+CREATE OR REPLACE SNOWFLAKE INTELLIGENCE SNOWFLAKE_INTELLIGENCE_OBJECT_DEFAULT;
+
+/*--
+ • Cortex AI Playground (Streamlit on SPCS) のセットアップ
+--*/
+
+USE ROLE sysadmin;
+USE DATABASE tb_101;
+USE SCHEMA public;
+
+-- AI Playground 用ステージ (画像/PDF テストファイル配置先)
+-- AI 関数 (画像/PDF 入力) では SERVER_SIDE_ENCRYPTION (SNOWFLAKE_SSE) かつ DIRECTORY 有効が推奨
+CREATE OR REPLACE STAGE tb_101.public.ai_playground_files
+    DIRECTORY = (ENABLE = TRUE)
+    ENCRYPTION = (TYPE = 'SNOWFLAKE_SSE')
+    COMMENT = 'Cortex AI Playground のテストファイル(画像/PDF)用ステージ';
+
+-- メタデータテーブル (アップロードしたファイルの説明・出典URL等を保持)
+CREATE TABLE IF NOT EXISTS tb_101.public.ai_playground_file_metadata (
+    filename VARCHAR,
+    description VARCHAR,
+    source_url VARCHAR,
+    uploaded_at TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP(),
+    updated_at TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP()
+);
+
+-- Streamlit アプリのソースコードを取得する Git Repository クローン
+-- 既存の git_api_integration (https://github.com/sfc-gh-kshimada/) を再利用
+CREATE OR REPLACE GIT REPOSITORY tb_101.public.ztsja_repo
+    API_INTEGRATION = git_api_integration
+    ORIGIN = 'https://github.com/sfc-gh-kshimada/ZeroToSnowflake_JA';
+
+-- 最新の main ブランチを取得
+ALTER GIT REPOSITORY tb_101.public.ztsja_repo FETCH;
+
+-- コンピュートプール使用権限の付与
+USE ROLE accountadmin;
+GRANT USAGE, MONITOR ON COMPUTE POOL tb_compute_pool TO ROLE sysadmin;
+GRANT USAGE, MONITOR ON COMPUTE POOL tb_compute_pool TO ROLE tb_admin;
+GRANT USAGE ON COMPUTE POOL tb_compute_pool TO ROLE tb_data_engineer;
+GRANT USAGE ON COMPUTE POOL tb_compute_pool TO ROLE tb_dev;
+
+-- Cortex AI 関数の利用権限 (TB_DEV には既に付与済み)
+GRANT DATABASE ROLE SNOWFLAKE.CORTEX_USER TO ROLE tb_admin;
+GRANT DATABASE ROLE SNOWFLAKE.CORTEX_USER TO ROLE tb_data_engineer;
+
+-- ステージ・メタデータテーブルへのアクセス権限
+USE ROLE securityadmin;
+GRANT READ, WRITE ON STAGE tb_101.public.ai_playground_files TO ROLE tb_dev;
+GRANT READ, WRITE ON STAGE tb_101.public.ai_playground_files TO ROLE tb_data_engineer;
+GRANT READ, WRITE ON STAGE tb_101.public.ai_playground_files TO ROLE tb_admin;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE tb_101.public.ai_playground_file_metadata TO ROLE tb_dev;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE tb_101.public.ai_playground_file_metadata TO ROLE tb_data_engineer;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE tb_101.public.ai_playground_file_metadata TO ROLE tb_admin;
+
+-- Git Repository の参照権限
+GRANT READ ON GIT REPOSITORY tb_101.public.ztsja_repo TO ROLE tb_dev;
+GRANT READ ON GIT REPOSITORY tb_101.public.ztsja_repo TO ROLE tb_data_engineer;
+
+-- Streamlit アプリの作成 (コンテナランタイム / tb_compute_pool 上)
+USE ROLE sysadmin;
+CREATE OR REPLACE STREAMLIT tb_101.public.ai_functions_playground
+    FROM '@tb_101.public.ztsja_repo/branches/main'
+    MAIN_FILE = 'ai_functions_playground.py'
+    RUNTIME_NAME = 'SYSTEM$ST_CONTAINER_RUNTIME_PY3_11'
+    COMPUTE_POOL = tb_compute_pool
+    QUERY_WAREHOUSE = tb_dev_wh
+    TITLE = 'Cortex AI Playground (JP)'
+    COMMENT = 'Snowflake Cortex AISQL 関数のインタラクティブプレイグラウンド';
+
+-- ライブバージョンの公開 (USAGE 権限で閲覧する利用者に必須)
+ALTER STREAMLIT tb_101.public.ai_functions_playground ADD LIVE VERSION FROM LAST;
+
+-- Streamlit アプリへの利用権限
+USE ROLE securityadmin;
+GRANT USAGE ON STREAMLIT tb_101.public.ai_functions_playground TO ROLE tb_dev;
+GRANT USAGE ON STREAMLIT tb_101.public.ai_functions_playground TO ROLE tb_data_engineer;
