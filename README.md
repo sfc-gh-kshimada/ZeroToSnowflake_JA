@@ -889,6 +889,7 @@ USE ROLE accountadmin;
 
 -- PROPAGATE 設定でタグを作成（依存オブジェクトとデータ移動の双方に伝播）
 CREATE OR REPLACE TAG governance.pii
+    ALLOWED_VALUES 'TRUE', 'FALSE'
     PROPAGATE = ON_DEPENDENCY_AND_DATA_MOVEMENT;
 
 GRANT APPLY TAG ON ACCOUNT TO ROLE tb_data_steward;
@@ -924,7 +925,7 @@ CALL governance.tb_classification_profile!SET_TAG_MAP(
   {'column_tag_map':[
     {
       'tag_name':'tb_101.governance.pii',
-      'tag_value':'pii',
+      'tag_value':'TRUE',
       'semantic_categories':['NAME', 'PHONE_NUMBER', 'POSTAL_CODE', 'DATE_OF_BIRTH', 'CITY', 'EMAIL']
     }]});
 ```

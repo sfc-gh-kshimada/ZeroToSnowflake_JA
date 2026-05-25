@@ -81,6 +81,7 @@ USE ROLE accountadmin;
 --   ON_DEPENDENCY_AND_DATA_MOVEMENT: ビュー依存 (CREATE VIEW) と データ移動 (CTAS / INSERT 等) 両方で伝播
 --   * Enterprise Edition 以上で利用可能
 CREATE OR REPLACE TAG governance.pii
+    ALLOWED_VALUES 'TRUE', 'FALSE'
     PROPAGATE = ON_DEPENDENCY_AND_DATA_MOVEMENT;
 
 -- tb_data_steward にタグ適用・分類実行の権限を付与する
@@ -105,7 +106,7 @@ CALL governance.tb_classification_profile!SET_TAG_MAP(
   {'column_tag_map':[
     {
       'tag_name':'tb_101.governance.pii',
-      'tag_value':'pii',
+      'tag_value':'TRUE',
       'semantic_categories':['NAME', 'PHONE_NUMBER', 'POSTAL_CODE', 'DATE_OF_BIRTH', 'CITY', 'EMAIL']
     }]});
 
