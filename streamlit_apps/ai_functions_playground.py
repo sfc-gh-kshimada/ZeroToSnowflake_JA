@@ -1038,7 +1038,7 @@ def render_ai_embed():
 with st.sidebar:
     st.markdown("## ❄️ Cortex AI Playground")
     st.caption("Snowflake Cortex AI 関数をインタラクティブに試せるツール")
-    selected_page = st.selectbox("関数を選択", FUNCTIONS, key="nav_function")
+    selected_page = st.radio("関数を選択", FUNCTIONS, key="nav_function")
     if st.button("テストファイル登録", key="show_stage", use_container_width=True):
         st.session_state.show_stage_browser = not st.session_state.get("show_stage_browser", False)
     debug_mode = st.toggle("デバッグモード", value=False)
