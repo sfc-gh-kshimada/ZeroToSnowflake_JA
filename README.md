@@ -2116,7 +2116,7 @@ Streamlit in Snowflake は、開発者が Snowflake 内で直接アプリケー�
 アプリが最初に読み込まれると、右ペインにサンプルアプリが表示され、左側のエディタペインにアプリのコードが表示されます。
 
 4. すべてのコードを選択して削除します。
-5. **次に、この[コード](https://github.com/sfc-gh-kshimada/ZeroToSnowflake_JA/blob/main/streamlit_apps/japan_menu_sales/streamlit_app.py)を空のエディタウィンドウにコピー＆ペーストし、右上の「Run」をクリックします。**
+5. **次に、この[コード](https://github.com/sfc-gh-kshimada/ZeroToSnowflake_JA/blob/main/streamlit_apps/jp_sales_dashboard.py)を空のエディタウィンドウにコピー＆ペーストし、右上の「Run」をクリックします。**
 
 ![./assets/vignette-5/create_streamlit_app.gif](./assets/vignette-5/create_streamlit_app.gif)
 
