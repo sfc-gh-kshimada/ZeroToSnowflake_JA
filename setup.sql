@@ -716,6 +716,22 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE tb_101.public.ai_playground_file_m
 GRANT READ ON GIT REPOSITORY tb_101.public.ztsja_repo TO ROLE tb_dev;
 GRANT READ ON GIT REPOSITORY tb_101.public.ztsja_repo TO ROLE tb_data_engineer;
 
+-- PyPI 用 External Access Integration (コンテナランタイムの依存解決に必要)
+USE ROLE accountadmin;
+CREATE OR REPLACE NETWORK RULE tb_101.public.pypi_network_rule
+    MODE = EGRESS
+    TYPE = HOST_PORT
+    VALUE_LIST = ('pypi.org:443', 'pypi.python.org:443', 'pythonhosted.org:443', 'files.pythonhosted.org:443');
+
+CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION tb_pypi_access_integration
+    ALLOWED_NETWORK_RULES = (tb_101.public.pypi_network_rule)
+    ENABLED = TRUE
+    COMMENT = 'Streamlit on SPCS から PyPI へアクセスするための EAI';
+
+GRANT USAGE ON INTEGRATION tb_pypi_access_integration TO ROLE sysadmin;
+GRANT USAGE ON INTEGRATION tb_pypi_access_integration TO ROLE tb_admin;
+GRANT USAGE ON INTEGRATION tb_pypi_access_integration TO ROLE tb_data_engineer;
+
 -- Streamlit アプリの作成 (コンテナランタイム / tb_compute_pool 上)
 USE ROLE sysadmin;
 CREATE OR REPLACE STREAMLIT tb_101.public.ai_functions_playground
@@ -724,6 +740,7 @@ CREATE OR REPLACE STREAMLIT tb_101.public.ai_functions_playground
     RUNTIME_NAME = 'SYSTEM$ST_CONTAINER_RUNTIME_PY3_11'
     COMPUTE_POOL = tb_compute_pool
     QUERY_WAREHOUSE = tb_dev_wh
+    EXTERNAL_ACCESS_INTEGRATIONS = (tb_pypi_access_integration)
     TITLE = 'Cortex AI Playground (JP)'
     COMMENT = 'Snowflake Cortex AISQL 関数のインタラクティブプレイグラウンド';
 
