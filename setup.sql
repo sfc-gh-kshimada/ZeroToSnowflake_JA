@@ -663,7 +663,7 @@ CREATE OR REPLACE SNOWFLAKE INTELLIGENCE SNOWFLAKE_INTELLIGENCE_OBJECT_DEFAULT;
  • Cortex AI Playground (Streamlit on SPCS) のセットアップ
 --*/
 
--- 全リソース (ステージ / テーブル / Git Repo / Network Rule / EAI / Streamlit) は accountadmin で作成
+-- 全リソース (ステージ / テーブル / Git Repo) は accountadmin で作成
 USE ROLE accountadmin;
 USE DATABASE tb_101;
 USE SCHEMA public;
@@ -714,36 +714,3 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE tb_101.public.ai_playground_file_m
 -- Git Repository の参照権限
 GRANT READ ON GIT REPOSITORY tb_101.public.ztsja_repo TO ROLE tb_dev;
 GRANT READ ON GIT REPOSITORY tb_101.public.ztsja_repo TO ROLE tb_data_engineer;
-
--- PyPI 用 External Access Integration (コンテナランタイムの依存解決に必要)
-CREATE OR REPLACE NETWORK RULE tb_101.public.pypi_network_rule
-    MODE = EGRESS
-    TYPE = HOST_PORT
-    VALUE_LIST = ('pypi.org:443', 'pypi.python.org:443', 'pythonhosted.org:443', 'files.pythonhosted.org:443');
-
-CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION tb_pypi_access_integration
-    ALLOWED_NETWORK_RULES = (tb_101.public.pypi_network_rule)
-    ENABLED = TRUE
-    COMMENT = 'Streamlit on SPCS から PyPI へアクセスするための EAI';
-
-GRANT USAGE ON INTEGRATION tb_pypi_access_integration TO ROLE sysadmin;
-GRANT USAGE ON INTEGRATION tb_pypi_access_integration TO ROLE tb_admin;
-GRANT USAGE ON INTEGRATION tb_pypi_access_integration TO ROLE tb_data_engineer;
-
--- Streamlit アプリの作成 (コンテナランタイム / tb_compute_pool 上) — accountadmin が所有者
-CREATE OR REPLACE STREAMLIT tb_101.public.ai_functions_playground
-    FROM '@tb_101.public.ztsja_repo/branches/main/streamlit_apps/ai_functions_playground'
-    MAIN_FILE = 'ai_functions_playground.py'
-    RUNTIME_NAME = 'SYSTEM$ST_CONTAINER_RUNTIME_PY3_11'
-    COMPUTE_POOL = tb_compute_pool
-    QUERY_WAREHOUSE = tb_dev_wh
-    EXTERNAL_ACCESS_INTEGRATIONS = (tb_pypi_access_integration)
-    TITLE = 'Cortex AI Playground (JP)'
-    COMMENT = 'Snowflake Cortex AISQL 関数のインタラクティブプレイグラウンド';
-
--- ライブバージョンの公開 (USAGE 権限で閲覧する利用者に必須)
-ALTER STREAMLIT tb_101.public.ai_functions_playground ADD LIVE VERSION FROM LAST;
-
--- Streamlit アプリへの利用権限
-GRANT USAGE ON STREAMLIT tb_101.public.ai_functions_playground TO ROLE tb_dev;
-GRANT USAGE ON STREAMLIT tb_101.public.ai_functions_playground TO ROLE tb_data_engineer;

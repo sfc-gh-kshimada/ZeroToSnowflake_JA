@@ -25,13 +25,15 @@ st.markdown(
     [data-testid="stSidebar"] > div {
         background-color: #1B6B8A !important;
     }
-    [data-testid="stSidebar"] * {
+    [data-testid="stSidebar"] h1,
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3,
+    [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] label,
+    [data-testid="stSidebar"] .stCaption,
+    [data-testid="stSidebar"] small {
         color: #ffffff !important;
-    }
-    [data-testid="stSidebar"] [data-baseweb="select"] span,
-    [data-testid="stSidebar"] [data-baseweb="select"] input,
-    [data-testid="stSidebar"] [data-baseweb="select"] div {
-        color: #1a1a2e !important;
+        opacity: 1 !important;
     }
     [data-testid="stSidebar"] button {
         color: #1B6B8A !important;
@@ -50,10 +52,6 @@ st.markdown(
     [data-testid="stSidebar"] button:hover span,
     [data-testid="stSidebar"] button:hover p {
         color: #ffffff !important;
-    }
-    [data-testid="stSidebar"] .stCaption, [data-testid="stSidebar"] small {
-        color: #ffffff !important;
-        opacity: 1 !important;
     }
     [data-testid="stSidebar"] .stRadio label span {
         font-size: 0.9rem;
