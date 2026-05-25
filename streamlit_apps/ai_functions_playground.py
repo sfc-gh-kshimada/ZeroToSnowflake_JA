@@ -609,31 +609,20 @@ def render_ai_extract():
   "schema": {
     "type": "object",
     "properties": {
-      "store_name": {
-        "description": "店舗名",
+      "name": {
+        "description": "氏名",
         "type": "string"
       },
-      "items_table": {
-        "description": "購入した商品の明細",
-        "type": "object",
-        "column_ordering": ["item_name", "unit_price", "quantity"],
-        "properties": {
-          "item_name": {
-            "description": "商品名",
-            "type": "array"
-          },
-          "unit_price": {
-            "description": "単価",
-            "type": "array"
-          },
-          "quantity": {
-            "description": "数量",
-            "type": "array"
-          }
-        }
+      "company": {
+        "description": "会社名",
+        "type": "string"
       },
-      "total": {
-        "description": "合計金額",
+      "email": {
+        "description": "メールアドレス",
+        "type": "string"
+      },
+      "phone": {
+        "description": "電話番号",
         "type": "string"
       }
     }
