@@ -277,10 +277,6 @@ CEO の Sridhar Ramaswamy 氏は今回の発表に際し、「これらの新機
         "usage": "SELECT AI_REDACT('<text>') AS result",
         "examples": [
             {
-                "name": "個人情報マスキング",
-                "input": "私の名前は John Smith です。社会保障番号は 123-45-6789、メールは john.smith@company.com、住所は東京都港区六本木 1-2-3 です。",
-            },
-            {
                 "name": "日本語PII",
                 "input": "山田太郎と申します。電話番号は 090-1234-5678、住所は東京都渋谷区神宮前 1-2-3、メールアドレスは taro.yamada@example.co.jp です。",
             },
@@ -1002,13 +998,8 @@ def render_ai_redact():
                     if err:
                         st.error(f"エラー: {err}")
                     else:
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.markdown("**入力テキスト**")
-                            st.text(text)
-                        with col2:
-                            st.markdown("**マスキング結果**")
-                            st.text(result[0]["RESULT"])
+                        st.markdown("**マスキング結果**")
+                        st.text(result[0]["RESULT"])
             else:
                 st.warning("テキストを入力してください")
 
