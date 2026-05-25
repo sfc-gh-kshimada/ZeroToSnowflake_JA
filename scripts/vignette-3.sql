@@ -1,0 +1,332 @@
+/***************************************************************************************************
+Asset:        Zero to Snowflake - Horizon ガバナンス・ハンズオン (Vignette 3)
+Version:      v1
+Copyright(c): 2025 Snowflake Inc. All rights reserved.
+
+このスクリプトでは Snowflake Horizon を使った PII データ保護を体験します:
+  1. RBAC                — tb_data_steward カスタムロールを作成し最小権限を付与
+  2. 自動分類 & PII タグ — 分類プロファイルで PII カラムを自動検出・タグ付け
+  3. Dynamic Masking      — pii タグに紐付くマスキングポリシーで列値を難読化
+  4. Row Access Policy    — ロールごとに参照可能な国を制限
+  5. Tag Propagation      — 下流ビューにタグ・ポリシーが自動伝播することを確認
+
+前提条件:
+  - setup.sql 実行済み（tb_101 DB, raw_customer/governance スキーマ, tb_admin/tb_data_engineer 等のロール, tb_dev_wh ウェアハウス）
+  - 実行ユーザーは ACCOUNTADMIN / SECURITYADMIN / USERADMIN を利用可能であること
+  - 対象テーブル: tb_101.raw_customer.customer_loyalty
+
+ポリシー設計方針:
+  - ACCOUNTADMIN は緊急時アクセス用途として全ポリシーをバイパス（マスクなし・全行参照可）
+  - Masking バイパス: ACCOUNTADMIN, TB_ADMIN
+  - Row Access バイパス: ACCOUNTADMIN, SYSADMIN
+****************************************************************************************************/
+
+-- セッションの初期設定
+ALTER SESSION SET query_tag = '{"origin":"sf_sit-is","name":"tb_zts","version":{"major":1, "minor":1},"attributes":{"is_quickstart":1, "source":"sql", "vignette": "governance_with_horizon"}}';
+
+USE ROLE useradmin;
+USE DATABASE tb_101;
+USE WAREHOUSE tb_dev_wh;
+
+
+/*==================================================================================================
+ 1. ロールとアクセス制御 (RBAC)
+   最小権限の原則に基づき、ガバナンス専任のカスタムロール tb_data_steward を作成する。
+==================================================================================================*/
+
+-- 既存ロールの一覧確認
+SHOW ROLES;
+
+-- tb_data_steward ロールの作成
+USE ROLE useradmin;
+CREATE OR REPLACE ROLE tb_data_steward
+    COMMENT = 'カスタムロール: ガバナンスオブジェクトを管理するデータスチュワード';
+
+-- tb_data_steward への権限付与
+USE ROLE securityadmin;
+
+-- ウェアハウスの使用権限
+GRANT OPERATE, USAGE ON WAREHOUSE tb_dev_wh TO ROLE tb_data_steward;
+
+-- データベース・スキーマへのアクセス権限
+GRANT USAGE ON DATABASE tb_101 TO ROLE tb_data_steward;
+GRANT USAGE ON ALL SCHEMAS IN DATABASE tb_101 TO ROLE tb_data_steward;
+
+-- raw_customer テーブルの参照権限と governance スキーマの全権限
+GRANT SELECT ON ALL TABLES IN SCHEMA raw_customer TO ROLE tb_data_steward;
+GRANT ALL ON SCHEMA governance TO ROLE tb_data_steward;
+GRANT ALL ON ALL TABLES IN SCHEMA governance TO ROLE tb_data_steward;
+
+-- 現在のユーザーに tb_data_steward を付与
+SET my_user = CURRENT_USER();
+GRANT ROLE tb_data_steward TO USER IDENTIFIER($my_user);
+
+-- 付与結果の確認
+SHOW GRANTS TO ROLE tb_data_steward;
+
+-- PII データの確認 (tb_data_steward は raw_customer.customer_loyalty を参照可能)
+USE ROLE tb_data_steward;
+SELECT TOP 100 * FROM raw_customer.customer_loyalty;
+
+
+/*==================================================================================================
+ 2. 自動タグ付けと PII 分類
+   分類プロファイル (auto_tag=true) で PII カラムを自動検出し pii タグを付与する。
+==================================================================================================*/
+
+-- PII タグの作成と分類権限の付与
+USE ROLE accountadmin;
+
+-- PII タグを作成する (PROPAGATE 設定で下流ビュー/CTAS 派生テーブルに自動伝播させる)
+--   ON_DEPENDENCY_AND_DATA_MOVEMENT: ビュー依存 (CREATE VIEW) と データ移動 (CTAS / INSERT 等) 両方で伝播
+--   * Enterprise Edition 以上で利用可能
+CREATE OR REPLACE TAG governance.pii
+    PROPAGATE = ON_DEPENDENCY_AND_DATA_MOVEMENT;
+
+-- tb_data_steward にタグ適用・分類実行の権限を付与する
+GRANT APPLY TAG ON ACCOUNT TO ROLE tb_data_steward;
+GRANT EXECUTE AUTO CLASSIFICATION ON SCHEMA raw_customer TO ROLE tb_data_steward;
+GRANT DATABASE ROLE SNOWFLAKE.CLASSIFICATION_ADMIN TO ROLE tb_data_steward;
+GRANT CREATE SNOWFLAKE.DATA_PRIVACY.CLASSIFICATION_PROFILE ON SCHEMA governance TO ROLE tb_data_steward;
+
+-- 分類プロファイルの作成 (auto_tag を true にすることで PII カラムへ自動的にタグが付与される)
+USE ROLE tb_data_steward;
+
+CREATE OR REPLACE SNOWFLAKE.DATA_PRIVACY.CLASSIFICATION_PROFILE
+  governance.tb_classification_profile(
+    {
+      'minimum_object_age_for_classification_days': 0,
+      'maximum_classification_validity_days': 30,
+      'auto_tag': true
+    });
+
+-- タグマップ: 検出された PII セマンティックカテゴリに pii タグを自動付与
+CALL governance.tb_classification_profile!SET_TAG_MAP(
+  {'column_tag_map':[
+    {
+      'tag_name':'tb_101.governance.pii',
+      'tag_value':'pii',
+      'semantic_categories':['NAME', 'PHONE_NUMBER', 'POSTAL_CODE', 'DATE_OF_BIRTH', 'CITY', 'EMAIL']
+    }]});
+
+-- customer_loyalty テーブルを自動分類 (実行に数秒かかります)
+CALL SYSTEM$CLASSIFY('tb_101.raw_customer.customer_loyalty', 'tb_101.governance.tb_classification_profile');
+
+-- タグ付け結果の確認 (apply_method = AUTO となっていれば自動タグ付け成功)
+USE ROLE accountadmin;
+SELECT
+    column_name,
+    tag_database,
+    tag_schema,
+    tag_name,
+    tag_value,
+    apply_method
+FROM TABLE(
+    tb_101.INFORMATION_SCHEMA.TAG_REFERENCES_ALL_COLUMNS('tb_101.raw_customer.customer_loyalty', 'TABLE')
+);
+
+-- 依存オブジェクト (customer_loyalty_v) へのタグ伝播確認
+SELECT
+    column_name,
+    tag_database,
+    tag_schema,
+    tag_name,
+    tag_value,
+    apply_method
+FROM TABLE(tb_101.INFORMATION_SCHEMA.TAG_REFERENCES_ALL_COLUMNS(
+    'tb_101.raw_customer.customer_loyalty', 'TABLE'
+));
+
+
+/*==================================================================================================
+ 3. Dynamic Masking Policy (カラムレベルセキュリティ)
+   pii タグに紐付くマスキングポリシーで、ACCOUNTADMIN / TB_ADMIN 以外には PII を難読化する。
+==================================================================================================*/
+
+USE ROLE tb_data_steward;
+
+-- 文字列型 PII 用 (ACCOUNTADMIN / TB_ADMIN 以外は '****MASKED****' で表示)
+CREATE OR REPLACE MASKING POLICY governance.mask_string_pii AS (original_value STRING)
+RETURNS STRING ->
+  CASE WHEN
+    CURRENT_ROLE() NOT IN ('ACCOUNTADMIN', 'TB_ADMIN')
+    THEN '****MASKED****'
+    ELSE original_value
+  END;
+
+-- DATE 型 PII 用 (ACCOUNTADMIN / TB_ADMIN 以外は年初日に丸めて表示)
+CREATE OR REPLACE MASKING POLICY governance.mask_date_pii AS (original_value DATE)
+RETURNS DATE ->
+  CASE WHEN
+    CURRENT_ROLE() NOT IN ('ACCOUNTADMIN', 'TB_ADMIN')
+    THEN DATE_TRUNC('year', original_value)
+    ELSE original_value
+  END;
+
+-- pii タグに両マスキングポリシーを関連付ける
+ALTER TAG governance.pii SET
+    MASKING POLICY governance.mask_string_pii,
+    MASKING POLICY governance.mask_date_pii;
+
+-- 動作確認 1: PUBLIC ロール → PII カラムがマスクされる
+USE ROLE public;
+SELECT TOP 100 * FROM raw_customer.customer_loyalty;
+
+-- 動作確認 2: TB_ADMIN ロール → 元の値がそのまま表示される
+USE ROLE tb_admin;
+SELECT TOP 100 * FROM raw_customer.customer_loyalty;
+
+-- 動作確認 3: ACCOUNTADMIN ロール → 元の値がそのまま表示される (緊急時アクセス用バイパス)
+USE ROLE accountadmin;
+SELECT TOP 100 * FROM raw_customer.customer_loyalty;
+
+
+/*==================================================================================================
+ 4. Row Access Policy (行レベルセキュリティ)
+   ロールごとに参照可能な国を制限する。ACCOUNTADMIN / SYSADMIN は全行参照可能。
+==================================================================================================*/
+
+USE ROLE tb_data_steward;
+
+-- ポリシーマップテーブル: ロール ↔ 参照可能な国の対応表
+CREATE OR REPLACE TABLE governance.row_policy_map
+    (role STRING, country_permission STRING);
+
+-- tb_data_engineer は 'United States' の行のみ参照可能
+INSERT INTO governance.row_policy_map
+    VALUES('tb_data_engineer', 'United States');
+
+-- 行アクセスポリシーの作成
+-- ACCOUNTADMIN / SYSADMIN は全行参照可能（バイパス）、それ以外はマップに従い絞り込む
+CREATE OR REPLACE ROW ACCESS POLICY governance.customer_loyalty_policy
+    AS (country STRING) RETURNS BOOLEAN ->
+        CURRENT_ROLE() IN ('ACCOUNTADMIN', 'SYSADMIN')
+        OR EXISTS (
+            SELECT 1
+            FROM governance.row_policy_map rp
+            WHERE UPPER(rp.role) = CURRENT_ROLE()
+              AND rp.country_permission = country
+        );
+
+-- customer_loyalty テーブルの country カラムにポリシーを適用する
+ALTER TABLE raw_customer.customer_loyalty
+    ADD ROW ACCESS POLICY governance.customer_loyalty_policy ON (country);
+
+-- 動作確認 1: TB_DATA_ENGINEER ロール → 米国の顧客のみ表示される
+USE ROLE tb_data_engineer;
+SELECT TOP 100 * FROM raw_customer.customer_loyalty;
+
+-- 動作確認 2: ACCOUNTADMIN ロール → 全行参照可能（バイパス）
+USE ROLE accountadmin;
+SELECT country, COUNT(*) AS cnt
+FROM tb_101.raw_customer.customer_loyalty
+GROUP BY country
+ORDER BY cnt DESC;
+
+
+/*==================================================================================================
+ 5. Tag Propagation (タグとポリシーの下流ビュー伝播)
+   customer_loyalty を参照する下流ビューを新規作成し、pii タグおよびマスキング/行アクセスが
+   自動伝播することを確認する。
+==================================================================================================*/
+
+-- 下流ビューを新規作成 (PII カラムを参照)
+USE ROLE tb_data_engineer;
+USE WAREHOUSE tb_dev_wh;
+
+CREATE OR REPLACE VIEW governance.customer_pii_downstream_v
+    COMMENT = 'Tag Propagation 確認用: customer_loyalty の PII カラムを参照する下流ビュー'
+AS
+SELECT
+    customer_id,
+    first_name,
+    last_name,
+    e_mail,
+    phone_number,
+    birthday_date,
+    city,
+    postal_code,
+    country
+FROM raw_customer.customer_loyalty;
+
+-- 新規作成した下流ビューのタグ伝播確認
+-- PROPAGATE = ON_DEPENDENCY_AND_DATA_MOVEMENT を設定済みのため、上流テーブルのタグが伝播する
+-- (ACCOUNT_USAGE.TAG_REFERENCES は最大2時間の遅延あり / INFORMATION_SCHEMA はリアルタイム)
+USE ROLE accountadmin;
+SELECT
+    column_name,
+    tag_name,
+    tag_value
+FROM TABLE(
+    tb_101.INFORMATION_SCHEMA.TAG_REFERENCES_ALL_COLUMNS('tb_101.governance.customer_pii_downstream_v', 'VIEW')
+);
+
+-- 既存の harmonized.customer_loyalty_metrics_v でも同様に伝播していることを確認
+USE ROLE accountadmin;
+SELECT
+    column_name,
+    tag_name,
+    tag_value
+FROM TABLE(
+    tb_101.INFORMATION_SCHEMA.TAG_REFERENCES_ALL_COLUMNS('tb_101.harmonized.customer_loyalty_metrics_v', 'VIEW')
+);
+
+-- ACCOUNT_USAGE 経由で伝播状況を見たい場合 (遅延あり)
+-- SELECT object_database, object_schema, object_name, column_name, tag_name, tag_value
+-- FROM SNOWFLAKE.ACCOUNT_USAGE.TAG_REFERENCES
+-- WHERE tag_name = 'PII' AND tag_database = 'TB_101';
+
+-- 動作確認 1: ACCOUNTADMIN → 下流ビューでもバイパス（全行・生値）
+USE ROLE accountadmin;
+SELECT TOP 50 * FROM tb_101.governance.customer_pii_downstream_v;
+
+-- 動作確認 2: TB_ADMIN → Masking バイパス・Row Access は対象外なので全行
+USE ROLE tb_admin;
+SELECT TOP 50 * FROM tb_101.governance.customer_pii_downstream_v;
+
+-- 動作確認 3: TB_DATA_ENGINEER → Masking 対象・Row Access により米国のみ
+USE ROLE tb_data_engineer;
+SELECT TOP 50 * FROM tb_101.governance.customer_pii_downstream_v;
+
+-- 動作確認 4: PUBLIC → Masking 対象・Row Access マップ未登録 → 行は 0 件
+USE ROLE public;
+SELECT TOP 50 * FROM tb_101.governance.customer_pii_downstream_v;
+
+/*--
+ ポイント:
+ - 下流ビューを新規作成しただけで、上流テーブルに付与した pii タグが自動伝播 (apply_method = PROPAGATED)
+ - タグ経由のマスキングポリシーも下流ビューに自動適用されるため、追加設定は不要
+ - 行アクセスポリシーは「テーブル」に適用したものが、そのテーブルを参照するビューにも継承される
+ - ACCOUNTADMIN は緊急時アクセス用にすべてのポリシーをバイパスする設計
+--*/
+
+
+/*==================================================================================================
+ (オプション) クリーンアップ
+   ハンズオン後に作成オブジェクトを削除する場合は以下のブロックを実行してください。
+==================================================================================================*/
+/*
+USE ROLE accountadmin;
+
+-- Row Access Policy を解除して削除
+ALTER TABLE tb_101.raw_customer.customer_loyalty
+    DROP ROW ACCESS POLICY tb_101.governance.customer_loyalty_policy;
+DROP ROW ACCESS POLICY IF EXISTS tb_101.governance.customer_loyalty_policy;
+DROP TABLE IF EXISTS tb_101.governance.row_policy_map;
+
+-- Masking Policy をタグから外して削除
+ALTER TAG tb_101.governance.pii UNSET
+    MASKING POLICY tb_101.governance.mask_string_pii,
+    MASKING POLICY tb_101.governance.mask_date_pii;
+DROP MASKING POLICY IF EXISTS tb_101.governance.mask_string_pii;
+DROP MASKING POLICY IF EXISTS tb_101.governance.mask_date_pii;
+
+-- 下流ビューと分類プロファイル、タグの削除
+DROP VIEW IF EXISTS tb_101.governance.customer_pii_downstream_v;
+DROP SNOWFLAKE.DATA_PRIVACY.CLASSIFICATION_PROFILE IF EXISTS tb_101.governance.tb_classification_profile;
+DROP TAG IF EXISTS tb_101.governance.pii;
+
+-- カスタムロールの削除
+USE ROLE useradmin;
+DROP ROLE IF EXISTS tb_data_steward;
+*/

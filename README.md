@@ -740,26 +740,26 @@ Snowsight で DAG にアクセスするには：
 
 ### 概要
 
-このビネットでは、Snowflake Horizon の強力なガバナンス機能のいくつかを探ります。ロールベースのアクセス制御（RBAC）の確認から始まり、自動データ分類、カラムレベルセキュリティのためのタグベースのマスキングポリシー、行アクセスポリシー、データ品質モニタリング、そして最後にトラストセンターによるアカウント全体のセキュリティ監視まで学びます。
+このビネットでは、Snowflake Horizon の強力なガバナンス機能のいくつかを探ります。ロールベースのアクセス制御（RBAC）の確認から始まり、自動データ分類、カラムレベルセキュリティのためのタグベースのマスキングポリシー、行アクセスポリシー、タグ伝播による下流オブジェクトへの自動ガバナンス継承、データ品質モニタリング、そして最後にトラストセンターによるアカウント全体のセキュリティ監視まで学びます。
 
 ### 学習内容
 - Snowflake でのロールベースのアクセス制御（RBAC）の基礎。
 - 機密データを自動的に分類してタグ付けする方法。
 - ダイナミックデータマスキングによるカラムレベルセキュリティの実装方法。
 - 行アクセスポリシーによる行レベルセキュリティの実装方法。
-- データメトリック関数によるデータ品質の監視方法。
+- タグ伝播（Tag Propagation）でビューや派生テーブルにガバナンスを自動継承させる方法。
 - トラストセンターによるアカウントセキュリティの監視方法。
 
 ### 構築するもの
-- カスタムの特権ロール。
+- カスタムの特権ロール（`tb_data_steward`）。
 - PII の自動タグ付けのためのデータ分類プロファイル。
-- 文字列カラムと日付カラムのためのタグベースのマスキングポリシー。
+- `PROPAGATE` 設定済みの PII タグと、文字列・日付カラム用のタグベースマスキングポリシー。
 - 国別にデータの可視性を制限する行アクセスポリシー。
-- データ整合性を確認するカスタムデータメトリック関数。
+- 上流テーブルからタグ・ポリシーが自動伝播する下流ビュー。
 
 ### SQL コードを取得して SQL ファイルに貼り付けます。
 
-**この[ファイル](https://github.com/sfc-gh-kshimada/ZeroToSnowflake_JA/blob/main/scripts/vignette-3.ipynb)の SQL を新しい SQL ファイルにコピーして貼り付け、Snowflake で手順に沿って進めてください。**
+**この[ファイル](https://github.com/sfc-gh-kshimada/ZeroToSnowflake_JA/blob/main/scripts/vignette-3.sql)の SQL を新しい SQL ファイルにコピーして貼り付け、Snowflake で手順に沿って進めてください。**
 
 **SQL ファイルの最後まで到達したら、[ステップ 29 - Snowflake Cortex AI](/en/developers/guides/zero-to-snowflake/)にスキップできます。**
 
@@ -882,18 +882,22 @@ SELECT TOP 100 * FROM raw_customer.customer_loyalty;
 
 #### ステップ 1 - PII タグの作成と権限付与
 
-`accountadmin` ロールを使って、`governance` スキーマに `pii` タグを作成します。また、`tb_data_steward` ロールに分類を実行するために必要な権限を付与します。
+`accountadmin` ロールを使って、`governance` スキーマに `pii` タグを作成します。タグ作成時に `PROPAGATE = ON_DEPENDENCY_AND_DATA_MOVEMENT` を指定することで、下流ビューや CTAS 派生テーブルにもタグが自動伝播するようになります（Enterprise Edition 以上）。また、`tb_data_steward` ロールに分類を実行するために必要な権限を付与します。
 
 ```sql
 USE ROLE accountadmin;
 
-CREATE OR REPLACE TAG governance.pii;
-GRANT APPLY TAG ON ACCOUNT TO ROLE tb_data_steward;
+-- PROPAGATE 設定でタグを作成（依存オブジェクトとデータ移動の双方に伝播）
+CREATE OR REPLACE TAG governance.pii
+    PROPAGATE = ON_DEPENDENCY_AND_DATA_MOVEMENT;
 
+GRANT APPLY TAG ON ACCOUNT TO ROLE tb_data_steward;
 GRANT EXECUTE AUTO CLASSIFICATION ON SCHEMA raw_customer TO ROLE tb_data_steward;
 GRANT DATABASE ROLE SNOWFLAKE.CLASSIFICATION_ADMIN TO ROLE tb_data_steward;
 GRANT CREATE SNOWFLAKE.DATA_PRIVACY.CLASSIFICATION_PROFILE ON SCHEMA governance TO ROLE tb_data_steward;
 ```
+
+> **タグ伝播のタイプ**: `ON_DEPENDENCY` はビュー/動的テーブル等の依存オブジェクトに継続的に伝播。`ON_DATA_MOVEMENT` は CTAS / INSERT / MERGE / COPY INTO 実行時にスナップショットで伝播。詳細は[自動タグ伝播のドキュメント](https://docs.snowflake.com/ja/user-guide/object-tagging/propagation)を参照。
 
 #### ステップ 2 - 分類プロファイルの作成
 
@@ -933,7 +937,7 @@ CALL governance.tb_classification_profile!SET_TAG_MAP(
 -- 分類をトリガー
 CALL SYSTEM$CLASSIFY('tb_101.raw_customer.customer_loyalty', 'tb_101.governance.tb_classification_profile');
 
--- 適用されたタグを確認
+-- 適用されたタグを確認（第2引数は VIEW でも 'TABLE' を指定）
 SELECT 
     column_name,
     tag_database,
@@ -941,10 +945,12 @@ SELECT
     tag_name,
     tag_value,
     apply_method
-FROM TABLE(INFORMATION_SCHEMA.TAG_REFERENCES_ALL_COLUMNS('raw_customer.customer_loyalty', 'table'));
+FROM TABLE(
+    tb_101.INFORMATION_SCHEMA.TAG_REFERENCES_ALL_COLUMNS('tb_101.raw_customer.customer_loyalty', 'TABLE')
+);
 ```
 
-PII として識別されたカラムにカスタムの `governance.pii` タグが適用されていることに注目してください。
+PII として識別されたカラムにカスタムの `governance.pii` タグが `apply_method = AUTO` で適用されていることに注目してください。
 
 ### マスキングポリシー
 
@@ -1066,77 +1072,56 @@ SELECT TOP 100 * FROM raw_customer.customer_loyalty;
 
 結果セットには `country` が 'United States' の行のみが含まれているはずです。
 
-### データメトリック関数
+### タグ伝播（Tag Propagation）
 
 
 #### 概要
 
-データガバナンスはセキュリティだけでなく、信頼と信頼性についてでもあります。Snowflake はデータメトリック関数（DMF）でデータの整合性を維持するのに役立ちます。システム定義の DMF を使用したり、テーブルで自動品質チェックを実行するための独自の DMF を作成したりできます。
+タグに `PROPAGATE` を設定すると、上流テーブルに付与した PII タグが**下流ビューや派生テーブルに自動伝播**します。これによりタグに紐付くマスキングポリシーや、テーブルに適用した行アクセスポリシーも、新規・既存の派生オブジェクトすべてに自動継承されるため、再設定の手間がなくなります。
 
-> 
-> **[データ品質モニタリング](https://docs.snowflake.com/ja/user-guide/data-quality-intro)**: 組み込みおよびカスタムのデータメトリック関数を使用してデータの一貫性と信頼性を確保する方法を学びます。
+> **[自動タグ伝播](https://docs.snowflake.com/ja/user-guide/object-tagging/propagation)**: ビュー / 動的テーブル等への依存伝播は継続的に同期され、CTAS や INSERT 等のデータ移動はスナップショットで伝播します。
 
-#### ステップ 1 - システム DMF の使用
+#### ステップ 1 - 下流ビューの作成
 
-Snowflake の組み込み DMF のいくつかを使って `order_header` テーブルの品質を確認しましょう。
-
-```sql
-USE ROLE tb_data_steward;
-
--- NULL の顧客 ID の割合を返します。
-SELECT SNOWFLAKE.CORE.NULL_PERCENT(SELECT customer_id FROM raw_pos.order_header);
-
--- DUPLICATE_COUNT を使って注文 ID の重複を確認できます。
-SELECT SNOWFLAKE.CORE.DUPLICATE_COUNT(SELECT order_id FROM raw_pos.order_header); 
-
--- すべての注文の平均注文合計金額。
-SELECT SNOWFLAKE.CORE.AVG(SELECT order_total FROM raw_pos.order_header);
-```
-
-#### ステップ 2 - カスタム DMF の作成
-
-特定のビジネスロジックのためのカスタム DMF を作成することもできます。`order_total` が `unit_price * quantity` と等しくない注文を確認する DMF を作成しましょう。
+`customer_loyalty` の PII カラムを参照する下流ビューを `tb_data_engineer` ロールで作成します。
 
 ```sql
-CREATE OR REPLACE DATA METRIC FUNCTION governance.invalid_order_total_count(
-    order_prices_t table(
-        order_total NUMBER,
-        unit_price NUMBER,
-        quantity INTEGER
-    )
-)
-RETURNS NUMBER
+USE ROLE tb_data_engineer;
+USE WAREHOUSE tb_dev_wh;
+
+CREATE OR REPLACE VIEW tb_101.governance.customer_pii_downstream_v
+    COMMENT = 'Tag Propagation 確認用: customer_loyalty の PII カラムを参照する下流ビュー'
 AS
-'SELECT COUNT(*)
- FROM order_prices_t
- WHERE order_total != unit_price * quantity';
+SELECT
+    customer_id, first_name, last_name, e_mail, phone_number,
+    birthday_date, city, postal_code, country
+FROM tb_101.raw_customer.customer_loyalty;
 ```
 
-#### ステップ 3 - DMF のテストとスケジュール
+#### ステップ 2 - 伝播の確認
 
-DMF をテストするために不良レコードを挿入しましょう。その後、関数を呼び出してエラーを検出するか確認します。挿入するレコードは、単価 $5 の商品を 2 つ注文して、正しい合計 $10 の代わりに $5 が入力されています。
+下流ビューに上流テーブルのタグが自動伝播していることを `TAG_REFERENCES_ALL_COLUMNS` で確認します。
 
 ```sql
--- 不正な合計価格のレコードを挿入
-INSERT INTO raw_pos.order_detail
-SELECT 904745311, 459520442, 52, null, 0, 2, 5.0, 5.0, null;
-
--- 注文詳細テーブルでカスタム DMF を呼び出す。
-SELECT governance.invalid_order_total_count(
-    SELECT price, unit_price, quantity FROM raw_pos.order_detail
-) AS num_orders_with_incorrect_price;
+USE ROLE accountadmin;
+SELECT column_name, tag_name, tag_value
+FROM TABLE(
+    tb_101.INFORMATION_SCHEMA.TAG_REFERENCES_ALL_COLUMNS('tb_101.governance.customer_pii_downstream_v', 'TABLE')
+);
 ```
 
-このチェックを自動化するには、DMF をテーブルに関連付けてスケジュールを設定し、データが変更されるたびに自動的に実行されるようにして、`order_detail` テーブルに追加します。
+上流の `customer_loyalty` で PII と判定された 7 カラム（`first_name`, `last_name`, `e_mail`, `phone_number`, `birthday_date`, `city`, `postal_code`）すべてに `pii` タグが伝播しているはずです。
+
+#### ステップ 3 - ポリシーの自動継承確認
+
+`tb_data_engineer` ロールで下流ビューをクエリすると、マスキング（PII カラムが `****MASKED****`）と行アクセス（米国のみ）が **自動で適用**されます。下流ビューには何も設定していないにもかかわらず、上流テーブルのポリシーがそのまま効いていることを確認してください。
 
 ```sql
-ALTER TABLE raw_pos.order_detail
-    SET DATA_METRIC_SCHEDULE = 'TRIGGER_ON_CHANGES';
-
-ALTER TABLE raw_pos.order_detail
-    ADD DATA METRIC FUNCTION governance.invalid_order_total_count
-    ON (price, unit_price, quantity);
+USE ROLE tb_data_engineer;
+SELECT TOP 50 * FROM tb_101.governance.customer_pii_downstream_v;
 ```
+
+> **ポイント**: ビューを再作成したり、新規派生資産にポリシーを再設定する必要はありません。タグ伝播 + タグベースのポリシー適用により、ガバナンスがリネージに沿って自動的に拡張されます。
 
 ### トラストセンター
 
