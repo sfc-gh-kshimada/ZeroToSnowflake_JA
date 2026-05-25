@@ -76,7 +76,7 @@ for row_start in range(0, len(filtered_items), num_cols):
             line={'color': '#4C78A8', 'strokeWidth': 1}
         ).encode(
             x=alt.X('DATE:T', axis=alt.Axis(format='%d', labelAngle=0, grid=False, tickCount=5), title=None),
-            y=alt.Y('ORDER_TOTAL:Q', axis=alt.Axis(grid=True, gridColor='#eee', tickCount=3, format='~s'), title=None),
+            y=alt.Y('ORDER_TOTAL:Q', axis=alt.Axis(grid=True, gridColor='#888', gridOpacity=0.15, tickCount=3, format='~s'), title=None),
             tooltip=tooltip_fields
         )
 
@@ -92,7 +92,7 @@ for row_start in range(0, len(filtered_items), num_cols):
             title=alt.Title(text=f"{badge} {item}", subtitle=f"平均比: {diff_pct:+.1f}%", fontSize=11, anchor='start', subtitleFontSize=9, subtitleColor='#888'),
             height=chart_height
         ).configure_view(
-            stroke='#ddd', strokeWidth=0.5
+            stroke=None
         ).configure(
             background='transparent',
             padding=5
