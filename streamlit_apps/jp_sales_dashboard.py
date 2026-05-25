@@ -98,7 +98,7 @@ for row_start in range(0, len(filtered_items), num_cols):
             padding=5
         ).configure_axis(
             labelColor='#888', titleColor='#888',
-            gridColor='#bbb', domainColor='#999',
+            gridColor='#888', gridOpacity=0.15, domainColor='#999',
             labelFontSize=9
         )
         cols[i].altair_chart(c, use_container_width=True)
