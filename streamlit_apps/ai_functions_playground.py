@@ -131,14 +131,14 @@ FUNCTION_DOCS = {
         "usage": "SELECT AI_CLASSIFY('<text>', ['label1', 'label2', ...]) AS result\n-- マルチラベル:\nSELECT AI_CLASSIFY('<text>', ['l1','l2'], {'output_mode':'multi'}):labels AS result",
         "examples": [
             {
-                "name": "レビュー感情分類",
-                "input": "この商品は本当に最高です！今まで買った中で一番気に入っています。",
-                "params": "ポジティブ, ネガティブ, 中立",
+                "name": "物流クレーム分類",
+                "input": "先週注文した業務用プリンタがまだ届きません。納期回答も毎回変わるため、現場の立ち上げ日程に支障が出ています。",
+                "params": "配送遅延, 受注処理, 商品不具合, 請求関連",
             },
             {
-                "name": "サポートチケット分類",
-                "input": "アカウントがロックされてしまい、パスワードのリセットができません。",
-                "params": "請求関連, アカウントアクセス, 技術的問題, 機能リクエスト",
+                "name": "保全日報カテゴリ分類",
+                "input": "4号機の搬送ラインで停止アラームが断続的に発生。現地確認の結果、センサー部に粉塵が付着しており誤検知の可能性あり。清掃後はいったん復旧。再発可能性があるため来週交換予定。",
+                "params": "故障予兆, 予防保全, 部品交換, 操作説明",
             },
         ],
     },
@@ -148,14 +148,14 @@ FUNCTION_DOCS = {
         "usage": "SELECT AI_FILTER(PROMPT('<condition>: {0}', '<text>')) AS result",
         "examples": [
             {
-                "name": "技術的な内容かフィルタ",
-                "input": "新しい Transformer アーキテクチャはマルチヘッドアテンション機構を使用しています。",
-                "params": "このテキストはテクノロジーやコンピュータサイエンスに関する内容ですか？",
+                "name": "緊急障害『企業影響あり』検出",
+                "input": "決済APIの応答が急激に悪化しており、複数顧客で注文完了できないとの報告あり。暫定でトラフィック制御中。売上影響が出ているので至急対応をお願いします。",
+                "params": "このテキストはコールセンターにエスカレーションが必要な緊急障害ですか？",
             },
             {
-                "name": "緊急対応が必要なレビュー検出",
-                "input": "商品が破損して届きました。すぐに返金してほしいです。",
-                "params": "このテキストは緊急対応が必要な顧客クレームですか？",
+                "name": "コンプライアンスリスク検出",
+                "input": "このファンドは絶対に損をしません。長期で持っていれば必ず利益が出ます。元本割れのリスクはほぼゼロと考えていただいて大丈夫です。",
+                "params": "金融商品の説明として断定的な表現や元本保証を匂わせる表現が含まれていますか？",
             },
         ],
     },
@@ -165,14 +165,14 @@ FUNCTION_DOCS = {
         "usage": "SELECT AI_EXTRACT('<text_or_file>', ['field1', 'field2', ...]) AS result",
         "examples": [
             {
-                "name": "連絡先抽出",
-                "input": "こんにちは、Snowflake 株式会社の山田太郎と申します。ご連絡は taro@example.com もしくは 03-1234-5678 までお願いします。",
-                "params": "氏名, 会社名, メールアドレス, 電話番号",
+                "name": "設備不具合報告から項目抽出",
+                "input": "2026年5月12日、名古屋市中区栄のABCビル8階にて、空調機A-3の異常停止が発生。午前10時15分に管理会社から連絡があり、保全部門が10時50分に現地到着。原因は冷媒圧力低下の疑い。仮復旧済みだが、5月14日に部品交換予定。",
+                "params": "発生日, 場所, 設備名, 連絡時刻, 到着時刻, 原因, 暫定対応, 今後予定",
             },
             {
-                "name": "イベント情報抽出",
-                "input": "2025年3月15日に東京ビッグサイトで開催される AI サミットへぜひご参加ください。チケット料金は5万円です。",
-                "params": "イベント名, 開催日, 開催場所, 価格",
+                "name": "UPSバッテリ交換記録から抽出",
+                "input": "2026年5月20日、福岡市博多区の第3フロアサーバールームにて、UPSバッテリ3号機の要交換アラームが発生。部品保証期限は2026年8月31日。部品メーカーは日立ネクサス。交換件数：1式、工事期間：2時間見込。",
+                "params": "発生日, 設備名, 場所, アラーム種別, 部品保証期限, メーカー, 交換件数, 工事期間",
             },
         ],
     },
@@ -182,12 +182,12 @@ FUNCTION_DOCS = {
         "usage": "SELECT AI_SENTIMENT('<text>') AS result\n-- カテゴリ指定:\nSELECT AI_SENTIMENT('<text>', ['cost', 'quality', 'service']) AS result",
         "examples": [
             {
-                "name": "ポジティブレビュー",
-                "input": "このサービスは本当に素晴らしいです！スタッフの対応も丁寧で迅速、心からおすすめできます。",
+                "name": "コールセンター応対メモ（mixed）",
+                "input": "住所変更手続きについて問い合わせ。本人確認書類を再提出いただく必要があると案内したところ、「前回も同じことを言われた。なぜ毎回やり直しなのか」と強い不満を表明。最終的には理解いただいたが、手続きの煩雑さに納得していない様子。",
             },
             {
-                "name": "ネガティブフィードバック",
-                "input": "最悪の体験でした。商品は1日で壊れ、カスタマーサポートも全く役に立ちませんでした。",
+                "name": "ECレビュー（品質とパッケージの割れた評価）",
+                "input": "味は良かったのですが、キャップが固すぎて高齢の家族には開けづらかったです。改善されればまた買いたいです。",
             },
         ],
     },
@@ -197,12 +197,12 @@ FUNCTION_DOCS = {
         "usage": "SELECT AI_SUMMARIZE_AGG('<text>') AS result\n-- 列に対する集約:\nSELECT AI_SUMMARIZE_AGG(review_text) FROM reviews;",
         "examples": [
             {
-                "name": "長文ニュース記事要約",
-                "input": """Snowflake は本日、データクラウド上で動作する Cortex AI 機能の大規模な拡張を発表しました。今回のアップデートでは、開発者がデータプラットフォーム内で直接 AI 駆動型アプリケーションを構築できるよう、複数の新しい AI 関数が追加されています。具体的には、PDF や画像から構造化データを抽出する高度なドキュメント処理機能、テキストと画像を統合的に扱えるマルチモーダル分類機能、そして日本語を含む多言語に対応した自然言語理解の精度向上などが含まれています。
-
-また、Cortex Analyst によるテキストから SQL への変換機能、Cortex Search を用いた高速なセマンティック検索、Cortex Agents による複数ツール連携型のエージェント構築機能なども強化されました。これらの機能は、データガバナンスとセキュリティを Snowflake のプラットフォーム上で一貫して維持したまま AI を活用したいエンタープライズ顧客のニーズに応えるものです。
-
-CEO の Sridhar Ramaswamy 氏は今回の発表に際し、「これらの新機能は、すべてのデータプロフェッショナルが AI を業務に取り込めるようにする上で大きな前進となるものであり、Snowflake はデータと AI の境界を取り払うことを目指している」と述べました。さらに同社は、2026 年を通じて AI 研究領域における主要組織との連携を継続的に強化し、プラットフォームの推論性能・コスト効率・モデル選択肢の拡大に注力する方針を明らかにしました。Snowflake によれば、これらの取り組みはすでに金融、小売、製造、ヘルスケアといった主要業界のグローバル顧客で本番稼働しており、今後数四半期にわたりさらに多くのリージョンで一般提供される予定です。""",
+                "name": "SaaS週次フィードバック要約",
+                "input": """画面は見やすいが、検索が遅い。
+CSV出力は便利。ただし列名がわかりにくい。
+操作教育なしでも使えた。
+月初はレスポンスが落ちる。
+スマホ画面だと一部ボタンが押しづらい。詳細画面に履歴が欲しい。""",
             },
         ],
     },
@@ -212,22 +212,22 @@ CEO の Sridhar Ramaswamy 氏は今回の発表に際し、「これらの新機
         "usage": "SELECT AI_TRANSLATE('<text>', '<from_lang>', '<to_lang>') AS result",
         "examples": [
             {
-                "name": "英語→日本語",
-                "input": "Welcome to Snowflake's AI Playground. Here you can experiment with various Cortex AI functions.",
+                "name": "海外工場障害レポート翻訳（EN→JA）",
+                "input": "The injection molding line experienced a short downtime due to unstable pressure in Unit 3. The team replaced the valve and resumed operation within 25 minutes. No impact on shipment schedule was observed.",
                 "from_lang": "en",
                 "to_lang": "ja",
             },
             {
-                "name": "日本語→英語",
-                "input": "本日はご来場いただきありがとうございます。素晴らしい一日をお過ごしください。",
+                "name": "顧客対応メール翻訳（JA→EN）",
+                "input": "先日は対応が遅くなって大変ご不便をおかけしました。システム障害によるもので、再発防止の対策を完了しましたのでご安心ください。",
                 "from_lang": "ja",
                 "to_lang": "en",
             },
             {
-                "name": "日本語→韓国語",
-                "input": "こちらの会議室は午後3時から利用可能です。ご確認をお願いします。",
-                "from_lang": "ja",
-                "to_lang": "ko",
+                "name": "多言語レビュー翻訳（KO→JA）",
+                "input": "제품 품질은 만족스럽지만, 배송이 예상보다 오래 걸렸습니다. 다음에는 더 빠른 배송을 부탁드립니다.",
+                "from_lang": "ko",
+                "to_lang": "ja",
             },
         ],
     },
@@ -237,13 +237,17 @@ CEO の Sridhar Ramaswamy 氏は今回の発表に際し、「これらの新機
         "usage": "SELECT AI_COMPLETE('<model>', '<prompt>') AS result\n-- 構造化出力:\nSELECT AI_COMPLETE('<model>', '<prompt>', {'response_format': {'type': 'json', 'schema': {...}}}) AS result\n-- 画像入力:\nSELECT AI_COMPLETE('<model>', PROMPT('<text> {0}', TO_FILE('@stage','img.png'))) AS result",
         "examples": [
             {
-                "name": "コード説明",
-                "input": "以下の SQL がどのような処理を行うか、初心者にもわかるように日本語で簡潔に説明してください:\nSELECT customer_id, SUM(amount) OVER (PARTITION BY customer_id ORDER BY order_date) AS running_total FROM orders;",
+                "name": "納期遅延クレームへの返信文生成",
+                "input": """以下の問い合わせに対する、丁寧で簡潔な日本語の一次返信メールを件名と本文の形式で作成してください。キャンセルはまだ希望していません。
+
+問い合わせ：4月末納品予定と聞いていましたが、まだ出荷連絡がありません。現場立ち上げの日程に影響が出そうです。現在の状況といつ届くのかを至急教えてください。""",
                 "model": "claude-sonnet-4-6",
             },
             {
-                "name": "メール文面生成",
-                "input": "2 時間にわたるサービス障害についてお客様にお詫びする、プロフェッショナルかつ簡潔な日本語のメール文面を書いてください。件名と本文を含めてください。",
+                "name": "1on1メモから上長向けサマリー生成",
+                "input": """以下の 1on1 メモから上長向けの簡潔サマリーを日本語で生成してください。
+
+メモ：本人は現行プロジェクトの役割には納得している一方、データ分析だけでなく企画寄りの仕事にも関わりたい意向。直近は新システム移行対応で残業が増えており、負荷感あり。6月以降のアサイン見直しを希望。""",
                 "model": "claude-sonnet-4-6",
             },
             {
@@ -275,8 +279,8 @@ CEO の Sridhar Ramaswamy 氏は今回の発表に際し、「これらの新機
         "usage": "SELECT AI_REDACT('<text>') AS result",
         "examples": [
             {
-                "name": "日本語PII",
-                "input": "山田太郎と申します。電話番号は 090-1234-5678、住所は東京都渋谷区神宮前 1-2-3、メールアドレスは taro.yamada@example.co.jp です。",
+                "name": "顧客情報入り対応履歴",
+                "input": "山田太郎様（会員番号A783921）は、東京都港区芝公園 2-5-10 在住。登録電話番号は03-1234-5678、メールアドレスはtaro.yamada@example.co.jpです。最終対応日は2026年5月20日。",
             },
         ],
     },
@@ -286,13 +290,13 @@ CEO の Sridhar Ramaswamy 氏は今回の発表に際し、「これらの新機
         "usage": "SELECT AI_EMBED('<model>', '<text>') AS result",
         "examples": [
             {
-                "name": "文章ベクトル化",
-                "input": "Snowflake はクラウドデータプラットフォームです。",
+                "name": "社内FAQの類似検索",
+                "input": "支払い条件を変更するにはどうすればよいですか？",
                 "model": "snowflake-arctic-embed-l-v2.0",
             },
             {
-                "name": "類似度比較",
-                "input": "機械学習と人工知能",
+                "name": "不具合報告の重複検知",
+                "input": "包装機B-12にてシール不良が連続発生。ヒーター温度のばらつきが原因とみられる。",
                 "model": "snowflake-arctic-embed-l-v2.0",
             },
         ],
@@ -406,33 +410,21 @@ def list_stage_files():
 
 
 def render_image_input(key_prefix):
-    input_mode = st.radio(
-        "画像入力方法",
-        ["ステージから選択", "テストファイル登録へ"],
-        horizontal=True,
-        key=f"{key_prefix}_img_mode",
-    )
+    files = list_stage_files()
+    image_files = [f for f in files if f.lower().endswith((".png", ".jpg", ".jpeg"))]
     file_name = None
-    if input_mode == "ステージから選択":
-        files = list_stage_files()
-        image_files = [f for f in files if f.lower().endswith((".png", ".jpg", ".jpeg"))]
-        if image_files:
-            metadata = get_file_metadata()
-            display_names = [f"{f} ({metadata.get(f, {}).get('description', '')})" if metadata.get(f, {}).get('description') else f for f in image_files]
-            selected_idx = st.selectbox("ステージ上の画像", range(len(image_files)), format_func=lambda i: display_names[i], key=f"{key_prefix}_img_select")
-            file_name = image_files[selected_idx]
-            try:
-                img_bytes = session.file.get_stream(f"{STAGE}/{file_name}", decompress=False).read()
-                st.image(img_bytes, caption=file_name, width=300)
-            except Exception:
-                pass
-        else:
-            st.info("ステージに画像がありません。テストファイル登録からアップロードしてください。")
+    if image_files:
+        metadata = get_file_metadata()
+        display_names = [f"{f} ({metadata.get(f, {}).get('description', '')})" if metadata.get(f, {}).get('description') else f for f in image_files]
+        selected_idx = st.selectbox("ステージ上の画像", range(len(image_files)), format_func=lambda i: display_names[i], key=f"{key_prefix}_img_select")
+        file_name = image_files[selected_idx]
+        try:
+            img_bytes = session.file.get_stream(f"{STAGE}/{file_name}", decompress=False).read()
+            st.image(img_bytes, caption=file_name, width=300)
+        except Exception:
+            pass
     else:
-        st.info("サイドバーの「テストファイル登録」からファイルをアップロードしてください。")
-        if st.button("テストファイル登録を開く", key=f"{key_prefix}_goto_stage"):
-            st.session_state.show_stage_browser = True
-            st.rerun()
+        st.info("画像がありません。サイドバーからアップロードしてください。")
     return file_name
 
 
@@ -562,7 +554,7 @@ def render_ai_extract():
     with st.container():
         input_mode = st.radio(
             "入力方法",
-            ["テキスト入力", "ステージから選択", "テストファイル登録へ"],
+            ["テキスト入力", "ステージから選択"],
             horizontal=True,
             key="extract_input_mode",
         )
@@ -573,11 +565,6 @@ def render_ai_extract():
 
         if input_mode == "テキスト入力":
             text = st.text_area("テキスト", height=100, key="extract_text")
-        elif input_mode == "テストファイル登録へ":
-            st.info("サイドバーの「テストファイル登録」からファイルをアップロードしてください。")
-            if st.button("テストファイル登録を開く", key="extract_goto_stage"):
-                st.session_state.show_stage_browser = True
-                st.rerun()
         else:
             files = list_stage_files()
             if files:
@@ -593,7 +580,7 @@ def render_ai_extract():
                     except Exception:
                         pass
             else:
-                st.info("ステージにファイルがありません")
+                st.info("ファイルがありません。サイドバーからアップロードしてください。")
 
         format_mode = st.radio(
             "responseFormat 形式",
@@ -886,28 +873,23 @@ def render_ai_parse_document():
     info = FUNCTION_DOCS["AI_PARSE_DOCUMENT"]
 
     with st.container():
-        input_mode = st.radio(
-            "入力方法",
-            ["ステージから選択", "テストファイル登録へ"],
-            horizontal=True,
-            key="parse_input_mode",
-        )
-
         file_name = None
-        if input_mode == "テストファイル登録へ":
-            st.info("サイドバーの「テストファイル登録」からファイルをアップロードしてください。")
-            if st.button("テストファイル登録を開く", key="parse_goto_stage"):
-                st.session_state.show_stage_browser = True
-                st.rerun()
+        files = list_stage_files()
+        if files:
+            metadata = get_file_metadata()
+            display_names = [f"{f} ({metadata.get(f, {}).get('description', '')})" if metadata.get(f, {}).get('description') else f for f in files]
+            selected_idx = st.selectbox("ステージ上のファイル", range(len(files)), format_func=lambda i: display_names[i], key="parse_stage_select")
+            file_name = files[selected_idx]
+            if file_name.lower().endswith((".png", ".jpg", ".jpeg")):
+                try:
+                    img_bytes = session.file.get_stream(f"{STAGE}/{file_name}", decompress=False).read()
+                    st.image(img_bytes, caption=file_name, width=400)
+                except Exception:
+                    pass
+            elif file_name.lower().endswith(".pdf"):
+                st.caption(f"📄 {file_name} (PDFプレビューは省略)")
         else:
-            files = list_stage_files()
-            if files:
-                metadata = get_file_metadata()
-                display_names = [f"{f} ({metadata.get(f, {}).get('description', '')})" if metadata.get(f, {}).get('description') else f for f in files]
-                selected_idx = st.selectbox("ステージ上のファイル", range(len(files)), format_func=lambda i: display_names[i], key="parse_stage_select")
-                file_name = files[selected_idx]
-            else:
-                st.info("ステージにファイルがありません")
+            st.info("ファイルがありません。サイドバーからアップロードしてください。")
 
         mode = st.radio("解析モード", ["OCR", "LAYOUT"], horizontal=True, key="parse_mode")
         if mode == "OCR":
@@ -1028,16 +1010,50 @@ with st.sidebar:
     st.markdown("## ❄️ Cortex AI Playground")
     st.caption("Snowflake Cortex AI 関数をインタラクティブに試せるツール")
     selected_page = st.radio("関数を選択", FUNCTIONS, key="nav_function")
-    if st.button("テストファイル登録", key="show_stage", use_container_width=True):
-        st.session_state.show_stage_browser = not st.session_state.get("show_stage_browser", False)
+
+    st.markdown("---")
+    st.markdown("### 📁 テストファイル")
+
+    if "upload_counter" not in st.session_state:
+        st.session_state.upload_counter = 0
+    uc = st.session_state.upload_counter
+    uploaded = st.file_uploader(
+        "アップロード",
+        type=["pdf", "png", "jpg", "jpeg", "docx", "pptx", "tiff"],
+        key=f"sb_upload_{uc}",
+        label_visibility="collapsed",
+    )
+    if uploaded:
+        default_desc = uploaded.name.rsplit(".", 1)[0]
+        upload_desc = st.text_input("説明", value=default_desc, key=f"sb_desc_{uc}")
+        if st.button("登録", key="sb_upload_btn", use_container_width=True, type="primary"):
+            with st.spinner("登録中..."):
+                fname = upload_file_to_stage(uploaded, description=upload_desc, source_url="")
+            st.success(f"'{fname}' を登録")
+            st.session_state.upload_counter += 1
+            st.rerun()
+
+    files = list_stage_files()
+    metadata = get_file_metadata()
+    with st.expander(f"登録済ファイル ({len(files)})", expanded=False):
+        if files:
+            for f in files:
+                row = st.columns([5, 1])
+                desc = metadata.get(f, {}).get("description", "")
+                row[0].caption(f"📄 **{f}**" + (f"  \n{desc}" if desc else ""))
+                if row[1].button("🗑", key=f"sb_del_{f}"):
+                    try:
+                        session.sql(f"REMOVE '{STAGE}/{f}'").collect()
+                        session.sql(f"DELETE FROM {METADATA_TABLE} WHERE filename = '{f}'").collect()
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"削除エラー: {e}")
+        else:
+            st.caption("（ファイルなし）")
+
+    st.markdown("---")
     debug_mode = st.toggle("デバッグモード", value=False)
     st.markdown("<small>Powered by Cortex Code</small>", unsafe_allow_html=True)
-
-if "prev_function" not in st.session_state:
-    st.session_state.prev_function = selected_page
-if st.session_state.prev_function != selected_page:
-    st.session_state.show_stage_browser = False
-    st.session_state.prev_function = selected_page
 
 RENDER_MAP = {
     "AI_CLASSIFY": render_ai_classify,
@@ -1052,68 +1068,4 @@ RENDER_MAP = {
     "AI_EMBED": render_ai_embed,
 }
 
-if st.session_state.get("show_stage_browser", False):
-    col_title, col_close = st.columns([6, 1])
-    with col_title:
-        st.markdown('<p class="function-header">テストファイル登録</p>', unsafe_allow_html=True)
-    with col_close:
-        if st.button("<<", key="close_stage"):
-            st.session_state.show_stage_browser = False
-            st.rerun()
-    st.markdown(f"`{STAGE}`")
-    with st.spinner("ファイル一覧を取得中..."):
-        try:
-            rows = session.sql(f"LIST {STAGE}").collect()
-            metadata = get_file_metadata()
-            if rows:
-                data = []
-                for row in rows:
-                    name = row["name"].split("/")[-1] if row["name"] else ""
-                    size_val = row["size"] if "size" in row.asDict() else 0
-                    size_kb = round(size_val / 1024, 1) if size_val else 0
-                    meta = metadata.get(name, {})
-                    data.append({
-                        "filename": name,
-                        "size_kb": size_kb,
-                        "description": meta.get("description", ""),
-                        "source_url": meta.get("source_url", ""),
-                    })
-                df = pd.DataFrame(data)
-                st.dataframe(df, use_container_width=True)
-                st.caption(f"合計: {len(rows)} ファイル")
-
-                del_files = [d["filename"] for d in data if d["filename"]]
-                del_file = st.selectbox("削除するファイル", ["（選択してください）"] + del_files, key="stage_del_select")
-                if del_file and del_file != "（選択してください）":
-                    if st.button("削除", key="do_delete", type="secondary"):
-                        try:
-                            session.sql(f"REMOVE '{STAGE}/{del_file}'").collect()
-                            session.sql(f"DELETE FROM {METADATA_TABLE} WHERE filename = '{del_file}'").collect()
-                            st.success(f"'{del_file}' を削除しました")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"削除エラー: {e}")
-            else:
-                st.info("ステージにファイルがありません")
-        except Exception as e:
-            st.error(f"エラー: {e}")
-
-    st.markdown("---")
-    st.subheader("ファイル登録")
-    if "upload_counter" not in st.session_state:
-        st.session_state.upload_counter = 0
-    uc = st.session_state.upload_counter
-    uploaded = st.file_uploader("ファイルをアップロード", type=["pdf", "png", "jpg", "jpeg", "docx", "pptx", "tiff"], key=f"stage_upload_{uc}")
-    upload_desc = st.text_input("説明（必須）", key=f"upload_desc_{uc}", placeholder="例: 2024年売上レポート")
-    upload_url = st.text_input("ソースURL（任意）", key=f"upload_url_{uc}", placeholder="例: https://example.com/report.pdf")
-    if uploaded:
-        if not upload_desc:
-            st.warning("説明を入力してください")
-        elif st.button("登録", key="do_upload", type="primary"):
-            with st.spinner("ファイルを登録中..."):
-                fname = upload_file_to_stage(uploaded, description=upload_desc, source_url=upload_url)
-            st.success(f"'{fname}' を登録しました")
-            st.session_state.upload_counter += 1
-            st.rerun()
-else:
-    RENDER_MAP[selected_page]()
+RENDER_MAP[selected_page]()
