@@ -94,11 +94,11 @@ for row_start in range(0, len(filtered_items), num_cols):
         ).configure_view(
             stroke='#ddd', strokeWidth=0.5
         ).configure(
-            background='#ffffff',
+            background='transparent',
             padding=5
         ).configure_axis(
-            labelColor='#555', titleColor='#555',
-            gridColor='#eee', domainColor='#999',
+            labelColor='#888', titleColor='#888',
+            gridColor='#bbb', domainColor='#999',
             labelFontSize=9
         )
         cols[i].altair_chart(c, use_container_width=True)
