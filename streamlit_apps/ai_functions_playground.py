@@ -1029,6 +1029,7 @@ with st.sidebar:
         if st.button("登録", key="sb_upload_btn", use_container_width=True, type="primary"):
             with st.spinner("登録中..."):
                 fname = upload_file_to_stage(uploaded, description=upload_desc, source_url="")
+            list_stage_files.clear()
             st.success(f"'{fname}' を登録")
             st.session_state.upload_counter += 1
             st.rerun()
@@ -1045,6 +1046,7 @@ with st.sidebar:
                     try:
                         session.sql(f"REMOVE '{STAGE}/{f}'").collect()
                         session.sql(f"DELETE FROM {METADATA_TABLE} WHERE filename = '{f}'").collect()
+                        list_stage_files.clear()
                         st.rerun()
                     except Exception as e:
                         st.error(f"削除エラー: {e}")
