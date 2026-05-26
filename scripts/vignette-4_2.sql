@@ -148,9 +148,7 @@ CREATE OR REPLACE SEMANTIC VIEW TB_101.SEMANTIC_LAYER.TASTY_BYTES_BUSINESS_ANALY
         ORDERS.QUANTITY AS QUANTITY
             COMMENT = '注文内のアイテム数量',
         CUSTOMER_LOYALTY.TOTAL_SALES AS TOTAL_SALES
-            COMMENT = '顧客の累計売上金額（USD）',
-        CUSTOMER_LOYALTY.VISITED_LOCATION_COUNT AS ARRAY_SIZE(VISITED_LOCATION_IDS_ARRAY)
-            COMMENT = '顧客が訪問したユニークロケーション数'
+            COMMENT = '顧客の累計売上金額（USD）'
     )
 
     DIMENSIONS (
@@ -220,7 +218,9 @@ CREATE OR REPLACE SEMANTIC VIEW TB_101.SEMANTIC_LAYER.TASTY_BYTES_BUSINESS_ANALY
             COMMENT = '顧客の居住都市',
         CUSTOMER_LOYALTY.CUSTOMER_COUNTRY AS COUNTRY
             WITH SYNONYMS = ('居住国', '顧客の国')
-            COMMENT = '顧客の居住国'
+            COMMENT = '顧客の居住国',
+        CUSTOMER_LOYALTY.VISITED_LOCATION_COUNT AS ARRAY_SIZE(VISITED_LOCATION_IDS_ARRAY)
+            COMMENT = '顧客が訪問したユニークロケーション数'
     )
 
     METRICS (
@@ -268,9 +268,15 @@ CREATE OR REPLACE SEMANTIC VIEW TB_101.SEMANTIC_LAYER.TASTY_BYTES_BUSINESS_ANALY
         CUSTOMER_LOYALTY.LOYALTY_CUSTOMER_COUNT AS COUNT(CUSTOMER_LOYALTY.CUSTOMER_ID)
             WITH SYNONYMS = ('ロイヤルティ顧客数', 'loyalty member count')
             COMMENT = 'ロイヤルティプログラムの顧客数',
-        CUSTOMER_LOYALTY.AVG_VISITED_LOCATIONS AS AVG(CUSTOMER_LOYALTY.VISITED_LOCATION_COUNT)
+        CUSTOMER_LOYALTY.AVG_VISITED_LOCATIONS AS AVG(ARRAY_SIZE(CUSTOMER_LOYALTY.VISITED_LOCATION_IDS_ARRAY))
             WITH SYNONYMS = ('平均訪問ロケーション数', 'avg locations visited')
-            COMMENT = '顧客1人あたりの平均訪問ロケーション数'
+            COMMENT = '顧客1人あたりの平均訪問ロケーション数',
+        ORDERS.REVENUE_PER_CUSTOMER AS SUM(ORDERS.ORDER_TOTAL) / NULLIF(COUNT(DISTINCT ORDERS.CUSTOMER_ID), 0)
+            WITH SYNONYMS = ('顧客当たり売上', '顧客単価', 'revenue per customer', 'per customer revenue')
+            COMMENT = '顧客1人当たりの平均売上金額（総売上 ÷ ユニーク顧客数）',
+        ORDERS.ITEMS_PER_ORDER AS SUM(ORDERS.QUANTITY) / NULLIF(COUNT(DISTINCT ORDERS.ORDER_ID), 0)
+            WITH SYNONYMS = ('バスケットサイズ', '注文当たり数量', 'basket size', 'items per order')
+            COMMENT = '注文1件当たりの平均アイテム数（総数量 ÷ 注文件数）'
     )
 
     COMMENT = 'Tasty Bytes エグゼクティブアナリティクス用セマンティックビュー。注文データと顧客ロイヤルティデータを統合し、売上・注文・顧客行動を自然言語でクエリ可能。'
@@ -372,8 +378,7 @@ FROM SPECIFICATION $$
   ],
   "tool_resources": {
     "SALES_ANALYST": {
-      "semantic_view": "TB_101.SEMANTIC_LAYER.TASTY_BYTES_BUSINESS_ANALYTICS",
-      "execution_environment": {"type": "warehouse", "warehouse": "TB_DE_WH"}
+      "semantic_view": "TB_101.SEMANTIC_LAYER.TASTY_BYTES_BUSINESS_ANALYTICS"
     },
     "REVIEW_SEARCH": {
       "name": "TB_101.HARMONIZED.TASTY_BYTES_REVIEW_SEARCH",
