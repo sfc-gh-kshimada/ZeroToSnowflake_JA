@@ -317,6 +317,13 @@ CREATE OR REPLACE SEMANTIC VIEW TB_101.SEMANTIC_LAYER.TASTY_BYTES_BUSINESS_ANALY
 曖昧な質問への対応:
 - 「売上を分析して」のような曖昧な質問にはトラックブランド別の総売上と注文件数を返すこと。
 - 「人気メニュー」のような質問には注文件数と総売上の両方を返すこと。
+
+データ範囲に関する制約:
+- このデータセットには 2019年1月1日〜2022年11月1日 のデータのみ含まれている。
+- 2023年以降や 2019年より前の特定年を求めるクエリには SQL を生成しないこと。
+  代わりに「このデータには [指定年] のデータは含まれていません。
+  利用可能なデータは 2019〜2022 年です。2019〜2022 年のデータで分析しますか？」
+  と日本語で回答すること。
 $$
 
     AI_QUESTION_CATEGORIZATION $$
@@ -326,9 +333,43 @@ $$
 (2) レビュー・口コミ・感想・評判に関する質問 → 「この質問はレビューデータの検索が必要です。Cortex Search を使用してください。」と回答
 (3) 個人情報（氏名・住所・電話番号・メールアドレスなど）に関する質問 → 「個人情報に関する質問にはお答えできません。」と回答
 (4) 「おすすめ」「どうすべきか」などの意思決定を求める質問 → データに基づく分析結果を提供し、意思決定はユーザーに委ねる旨を付記する
-(5) 期間が曖昧な質問（「最近の売上」等）→ 全期間のデータを使用して回答する旨を明記する
-(6) 特定のブランド名が不正確な場合 → 類似するブランド名を提示して確認を求める
+(5) 2023年以降または2018年以前の特定年を明示的に含む質問（例:「2024年の売上」「2025年のデータ」）
+    → SQL を生成せず「申し訳ありませんが、[指定年] のデータはこのデータセットには含まれていません。
+      利用可能なデータは 2019年1月〜2022年11月 です。
+      この期間のデータで分析しますか？」と日本語で返答し、代替分析を提案する
+(6) 期間が曖昧な質問（「最近の売上」「今年の売上」等）→ 全期間のデータを使用して回答する旨を明記する
+(7) 特定のブランド名が不正確な場合 → 類似するブランド名を提示して確認を求める
 $$
+
+    AI_VERIFIED_QUERIES (
+        top_brands_by_revenue AS (
+            QUESTION '売上上位のトラックブランドは？'
+            ONBOARDING_QUESTION TRUE
+            SQL 'SELECT * FROM SEMANTIC_VIEW(
+                TB_101.SEMANTIC_LAYER.TASTY_BYTES_BUSINESS_ANALYTICS
+                DIMENSIONS ORDERS.TRUCK_BRAND_NAME
+                METRICS ORDERS.TOTAL_REVENUE, ORDERS.TOTAL_ORDERS
+            ) ORDER BY TOTAL_REVENUE DESC LIMIT 10'
+        ),
+        revenue_by_year AS (
+            QUESTION '年別の売上推移は？'
+            ONBOARDING_QUESTION TRUE
+            SQL 'SELECT * FROM SEMANTIC_VIEW(
+                TB_101.SEMANTIC_LAYER.TASTY_BYTES_BUSINESS_ANALYTICS
+                DIMENSIONS ORDERS.ORDER_YEAR
+                METRICS ORDERS.TOTAL_REVENUE, ORDERS.TOTAL_ORDERS
+            ) ORDER BY ORDER_YEAR'
+        ),
+        top_cities_by_orders AS (
+            QUESTION '注文件数が多い都市トップ10は？'
+            ONBOARDING_QUESTION TRUE
+            SQL 'SELECT * FROM SEMANTIC_VIEW(
+                TB_101.SEMANTIC_LAYER.TASTY_BYTES_BUSINESS_ANALYTICS
+                DIMENSIONS ORDERS.PRIMARY_CITY
+                METRICS ORDERS.TOTAL_ORDERS, ORDERS.TOTAL_REVENUE
+            ) ORDER BY TOTAL_ORDERS DESC LIMIT 10'
+        )
+    )
 
     COPY GRANTS;
 
