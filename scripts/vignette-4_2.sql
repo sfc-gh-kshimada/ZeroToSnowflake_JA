@@ -271,12 +271,18 @@ CREATE OR REPLACE SEMANTIC VIEW TB_101.SEMANTIC_LAYER.TASTY_BYTES_BUSINESS_ANALY
         CUSTOMER_LOYALTY.AVG_VISITED_LOCATIONS AS AVG(ARRAY_SIZE(CUSTOMER_LOYALTY.VISITED_LOCATION_IDS_ARRAY))
             WITH SYNONYMS = ('平均訪問ロケーション数', 'avg locations visited')
             COMMENT = '顧客1人あたりの平均訪問ロケーション数',
-        ORDERS.REVENUE_PER_CUSTOMER AS SUM(ORDERS.ORDER_TOTAL) / NULLIF(COUNT(DISTINCT ORDERS.CUSTOMER_ID), 0)
+        ORDERS.REVENUE_PER_CUSTOMER AS ORDERS.TOTAL_REVENUE / NULLIF(ORDERS.UNIQUE_CUSTOMERS, 0)
             WITH SYNONYMS = ('顧客当たり売上', '顧客単価', 'revenue per customer', 'per customer revenue')
-            COMMENT = '顧客1人当たりの平均売上金額（総売上 ÷ ユニーク顧客数）',
-        ORDERS.ITEMS_PER_ORDER AS SUM(ORDERS.QUANTITY) / NULLIF(COUNT(DISTINCT ORDERS.ORDER_ID), 0)
+            COMMENT = '顧客1人当たりの平均売上金額（TOTAL_REVENUE ÷ UNIQUE_CUSTOMERS）',
+        ORDERS.ITEMS_PER_ORDER AS ORDERS.TOTAL_ITEMS / NULLIF(ORDERS.TOTAL_ORDERS, 0)
             WITH SYNONYMS = ('バスケットサイズ', '注文当たり数量', 'basket size', 'items per order')
-            COMMENT = '注文1件当たりの平均アイテム数（総数量 ÷ 注文件数）'
+            COMMENT = '注文1件当たりの平均アイテム数（TOTAL_ITEMS ÷ TOTAL_ORDERS）',
+        ORDERS.REVENUE_PER_TRUCK AS ORDERS.TOTAL_REVENUE / NULLIF(ORDERS.UNIQUE_TRUCKS, 0)
+            WITH SYNONYMS = ('トラック当たり売上', 'revenue per truck', 'truck revenue')
+            COMMENT = 'フードトラック1台当たりの平均売上（TOTAL_REVENUE ÷ UNIQUE_TRUCKS）',
+        ORDERS.REVENUE_PER_LOCATION AS ORDERS.TOTAL_REVENUE / NULLIF(ORDERS.UNIQUE_LOCATIONS, 0)
+            WITH SYNONYMS = ('ロケーション当たり売上', 'revenue per location', 'location revenue')
+            COMMENT = 'ロケーション1拠点当たりの平均売上（TOTAL_REVENUE ÷ UNIQUE_LOCATIONS）'
     )
 
     COMMENT = 'Tasty Bytes エグゼクティブアナリティクス用セマンティックビュー。注文データと顧客ロイヤルティデータを統合し、売上・注文・顧客行動を自然言語でクエリ可能。'
