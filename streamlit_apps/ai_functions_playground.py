@@ -197,7 +197,7 @@ FUNCTION_DOCS = {
         "usage": "SELECT AI_SUMMARIZE_AGG('<text>') AS result\n-- 列に対する集約:\nSELECT AI_SUMMARIZE_AGG(review_text) FROM reviews;",
         "examples": [
             {
-                "name": "SaaS週次フィードバック要約",
+                "name": "ユーザーフィードバック要約",
                 "input": """画面は見やすいが、検索が遅い。
 CSV出力は便利。ただし列名がわかりにくい。
 操作教育なしでも使えた。
@@ -483,7 +483,7 @@ def render_ai_classify():
                         sql = f"SELECT AI_CLASSIFY(TO_FILE('{STAGE}', '{image_file}'), [{label_list}]{config}) AS result"
                     else:
                         escaped_text = text.replace("'", "''")
-                        sql = f"SELECT AI_CLASSIFY('{escaped_text}', [{label_list}]{config}) AS result"
+                        sql = f"SELECT AI_CLASSIFY(AI_TRANSLATE('{escaped_text}', '', 'en'), [{label_list}]{config}) AS result"
 
                     result, err = run_ai_sql(sql)
                     if err:
@@ -525,7 +525,7 @@ def render_ai_filter():
                         sql = f"SELECT AI_FILTER('{escaped_cond}', TO_FILE('{STAGE}', '{image_file}')) AS result"
                     else:
                         escaped_text = text.replace("'", "''")
-                        sql = f"SELECT AI_FILTER(PROMPT('{escaped_cond}: {{0}}', '{escaped_text}')) AS result"
+                        sql = f"SELECT AI_FILTER(PROMPT('{escaped_cond}: {{0}}', AI_TRANSLATE('{escaped_text}', '', 'en'))) AS result"
 
                     result, err = run_ai_sql(sql)
                     if err:
@@ -681,11 +681,12 @@ def render_ai_sentiment():
             if text:
                 with st.spinner("実行中..."):
                     escaped_text = text.replace("'", "''")
+                    translated = f"AI_TRANSLATE('{escaped_text}', '', 'en')"
                     if categories_input.strip():
                         cat_list = ", ".join([f"'{c.strip()}'" for c in categories_input.split(",")])
-                        sql = f"SELECT AI_SENTIMENT('{escaped_text}', [{cat_list}]) AS result"
+                        sql = f"SELECT AI_SENTIMENT({translated}, [{cat_list}]) AS result"
                     else:
-                        sql = f"SELECT AI_SENTIMENT('{escaped_text}') AS result"
+                        sql = f"SELECT AI_SENTIMENT({translated}) AS result"
                     result, err = run_ai_sql(sql)
                     if err:
                         st.error(f"エラー: {err}")

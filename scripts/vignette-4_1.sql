@@ -1,207 +1,217 @@
 /***************************************************************************************************
-Asset:        Zero to Snowflake - AI Functions を利用したレビュー分析
-Version:      v1
+Asset:        Zero to Snowflake - Cortex AI Functions でレビュー分析
+Version:      v2
 Copyright(c): 2025 Snowflake Inc. All rights reserved.
+
+ストーリー:
+  Smoky BBQ 東京店の顧客満足度を改善するため、日本語レビュー47件を
+  Cortex AI Functions で多角的に分析し、経営層への改善提案を作成する。
 
 目次:
   1. セッションの初期設定
-  2. AI_CLASSIFY   — フィードバックカテゴリの分類
-  3. AI_SENTIMENT  — アスペクトベースのセンチメント分析
-  4. AI_COMPLETE   — 改善点・良い点の構造化抽出
-  5. AI_AGG + AI_TRANSLATE — ブランド別エグゼクティブサマリーの生成
+  2. AI_CLASSIFY   — レビューのカテゴリ分類
+  3. AI_FILTER     — ネガティブレビューの WHERE 句フィルタリング
+  4. AI_SENTIMENT  — アスペクト別センチメント分析
+  5. AI_EXTRACT    — メニュー名・不満点の構造化抽出
+  6. AI_COMPLETE   — 改善提案の構造化 JSON 生成
+  7. AI_AGG        — 経営層向けエグゼクティブサマリーの生成
 
 前提条件:
   - setup.sql 実行済み
-  - ロール tb_analyst、ウェアハウス tb_analyst_wh が利用可能
-  - 対象テーブル: TB_101.harmonized.truck_reviews_v
+  - ロール tb_data_engineer、ウェアハウス tb_de_wh が利用可能
+  - 対象ビュー: TB_101.HARMONIZED.TRUCK_REVIEWS_V
 ***************************************************************************************************/
 
 -- ============================================================
 -- 1. セッションの初期設定
 -- ============================================================
 
-ALTER SESSION SET query_tag = '{"origin":"sf_sit-is","name":"tb_zts","version":{"major":1, "minor":1},"attributes":{"is_quickstart":1, "source":"tastybytes", "vignette": "aisql_functions"}}';
-USE ROLE tb_analyst;
+USE ROLE tb_data_engineer;
 USE DATABASE tb_101;
-USE WAREHOUSE tb_analyst_wh;
+USE WAREHOUSE tb_de_wh;
+
+ALTER SESSION SET query_tag = '{"origin":"sf_sit-is","name":"tb_zts","version":{"major":1,"minor":2},"attributes":{"is_quickstart":1,"source":"tastybytes","vignette":"cortex_ai_functions"}}';
 
 
 -- ============================================================
--- 2. AI_CLASSIFY — フィードバックカテゴリの分類
+-- 2. AI_CLASSIFY — 顧客は何についてコメントしているか？
 -- ============================================================
--- ビジネス上の問い: 顧客は主に何についてコメントしているか？
+-- AI_CLASSIFY はテキストをユーザー定義カテゴリに AI で分類する。
+-- キーワードマッチングではなく意味理解に基づくため、表現揺れに強い。
 --
--- AI_CLASSIFY の特徴:
---   - キーワードマッチングではなく AI の理解に基づいてテキストを分類する
---   - 分類カテゴリはユーザーが自由に定義できる
---   - 戻り値は JSON: { "labels": ["Food Quality"], "scores": [0.92] }
---   - :labels[0] → 最上位カテゴリ
---   - :scores[0] → 確信度スコア（0〜1）
+-- 戻り値: { "labels": ["Food Quality"], "scores": [0.92] }
 
--- レビューを 4 カテゴリに自動分類してカテゴリ別の件数を集計する
-WITH classified_reviews AS (
-  SELECT
-    truck_brand_name,
+-- 2-a. 個別レビューの分類結果を確認
+SELECT
+    review,
     AI_CLASSIFY(
-      review,
-      ['Food Quality', 'Pricing', 'Service Experience', 'Staff Behavior']
-    ):labels[0] AS feedback_category
-  FROM harmonized.truck_reviews_v
-  WHERE language ILIKE '%en%'
-    AND review IS NOT NULL
-    AND LENGTH(review) > 30
-  LIMIT 10000
-)
-SELECT
-  feedback_category,
-  COUNT(*) AS number_of_reviews
-FROM classified_reviews
-GROUP BY feedback_category
-ORDER BY number_of_reviews DESC;
+        review,
+        ['Food Quality', 'Service', 'Value for Money', 'Atmosphere']
+    ) AS classification
+FROM harmonized.truck_reviews_v
+WHERE language = 'ja'
+  AND truck_brand_name = 'Smoky BBQ'
+  AND review IS NOT NULL
+LIMIT 5;
 
-
--- ============================================================
--- 3. AI_SENTIMENT — アスペクトベースのセンチメント分析
--- ============================================================
--- ビジネス上の問い: Food Quality への評価が高いトラックはどこか？
---
--- AI_SENTIMENT の特徴:
---   - 第2引数にアスペクト（観点）を指定することで「何に対してポジティブか」を絞り込める
---   - 戻り値の categories 配列を LATERAL FLATTEN で1行1アスペクトに展開する
---   - センチメント値: "positive" / "negative" / "neutral" / "mixed"
---
--- 戻り値の構造:
--- {
---   "categories": [
---     { "name": "Food Quality", "sentiment": "positive", "score": 0.87 }
---   ]
--- }
-
--- Food Quality のアスペクト別センチメントを集計し、ポジティブ率ランキングを作成する
-WITH with_sentiment AS (
-    -- Step 1: AI_SENTIMENT でアスペクトごとのセンチメントを取得
+-- 2-b. カテゴリ別の件数分布
+WITH classified AS (
     SELECT
-        truck_brand_name,
-        AI_SENTIMENT(review, ['Food Quality']) AS sentiment_result
-    FROM harmonized.truck_reviews_v
-    WHERE language ILIKE '%en%'
-        AND review IS NOT NULL
-        AND LENGTH(review) > 30
-    LIMIT 10000
-),
-flattened AS (
-    -- Step 2: LATERAL FLATTEN で categories 配列を行に展開
-    SELECT
-        truck_brand_name,
-        c.value:sentiment::STRING AS sentiment
-    FROM with_sentiment,
-        LATERAL FLATTEN(input => sentiment_result:categories) c
-    WHERE c.value:name::STRING = 'Food Quality'
-),
-counts AS (
-    -- Step 3: センチメント別に集計
-    SELECT
-        truck_brand_name,
-        COUNT(*) AS total,
-        COUNT(CASE WHEN sentiment = 'positive' THEN 1 END) AS positive_count,
-        COUNT(CASE WHEN sentiment = 'negative' THEN 1 END) AS negative_count,
-        COUNT(CASE WHEN sentiment = 'neutral'  THEN 1 END) AS neutral_count,
-        COUNT(CASE WHEN sentiment = 'mixed'    THEN 1 END) AS mixed_count
-    FROM flattened
-    GROUP BY truck_brand_name
-)
-SELECT
-    RANK() OVER (ORDER BY ROUND(positive_count / total * 100, 1) DESC) AS rank,
-    truck_brand_name,
-    total AS total_reviews,
-    ROUND(positive_count / total * 100, 1) AS positive_pct,
-    ROUND(negative_count / total * 100, 1) AS negative_pct,
-    ROUND(neutral_count  / total * 100, 1) AS neutral_pct,
-    ROUND(mixed_count    / total * 100, 1) AS mixed_pct
-FROM counts
-ORDER BY rank;
-
-
--- ============================================================
--- 4. AI_COMPLETE（構造化出力）— 改善点・良い点の抽出
--- ============================================================
--- ビジネス上の問い: 各レビューの改善点と良い点を日本語でまとめてほしい
---
--- AI_COMPLETE 構造化出力の特徴:
---   - response_format で JSON スキーマを定義すると指定したフィールドが必ず返ってくる
---   - テキストをそのまま抜き出す（AI_EXTRACT）のではなく LLM が推論・要約してフィールドを生成する
---   - シンプルなパスアクセスで値を取得: feedback:complaint::STRING
---
--- 戻り値の構造（response_format 指定時）:
--- { "complaint": "待ち時間が長すぎる", "praise": "スタッフが親切で食事も美味しかった" }
-
--- レビューを日本語翻訳してから AI_COMPLETE で改善点・良い点を構造化抽出する
-WITH translated AS (
-    -- Step 1: AI_TRANSLATE でレビューを日本語化する
-    SELECT
-        truck_brand_name,
-        AI_TRANSLATE(review, 'en', 'ja') AS review_ja
-    FROM harmonized.truck_reviews_v
-    WHERE language = 'en'
-        AND review IS NOT NULL
-        AND LENGTH(review) > 100
-    ORDER BY truck_brand_name, primary_city ASC
-    LIMIT 100
-),
-analyzed AS (
-    -- Step 2: AI_COMPLETE で complaint / praise を構造化 JSON として生成する
-    SELECT
-        truck_brand_name,
-        review_ja,
-        AI_COMPLETE(
-            'claude-sonnet-4-6',
-            review_ja,
-            response_format => {
-                'type': 'json',
-                'schema': {
-                    'type': 'object',
-                    'properties': {
-                        'complaint': {'type': 'string', 'description': '改善が必要な点や苦情。なければ「なし」'},
-                        'praise':    {'type': 'string', 'description': '良い点や称賛。なければ「なし」'}
-                    },
-                    'required': ['complaint', 'praise']
-                }
-            }
-        )::VARIANT AS feedback
-    FROM translated
-)
--- Step 3: JSON パスでカラムとして取り出す
-SELECT
-    truck_brand_name,
-    review_ja,
-    feedback:complaint::STRING AS complaint,
-    feedback:praise::STRING    AS praise
-FROM analyzed;
-
-
--- ============================================================
--- 5. AI_AGG + AI_TRANSLATE — エグゼクティブサマリーの生成
--- ============================================================
--- ビジネス上の問い: ブランドごとに改善すべき点を3つ挙げてほしい
---
--- AI_AGG の特徴:
---   - GROUP BY 対象のすべてのテキストを LLM に渡して集約する
---   - プロンプトで出力フォーマットを明示すると回答が安定する
---   - AI_TRANSLATE と組み合わせて多言語出力も可能
-
--- ブランドごとにレビューを集約し、改善点トップ3を日本語サマリーとして生成する
-SELECT
-    truck_brand_name,
-    AI_TRANSLATE(
-        AI_AGG(
+        AI_CLASSIFY(
             review,
-            '改善すべき点を3つ答えてください。必ず以下の形式で出力し、前置きや説明文は不要です。\n- [改善点1]\n- [改善点2]\n- [改善点3]'
-        ),
-        'en', 'ja'
-    ) AS review_summary_ja
-FROM (
-    SELECT * FROM harmonized.truck_reviews_v
-    WHERE language = 'en' AND review IS NOT NULL
-    LIMIT 100
+            ['Food Quality', 'Service', 'Value for Money', 'Atmosphere']
+        ):labels[0]::STRING AS category
+    FROM harmonized.truck_reviews_v
+    WHERE language = 'ja'
+      AND truck_brand_name = 'Smoky BBQ'
+      AND review IS NOT NULL
 )
-GROUP BY truck_brand_name;
+SELECT
+    category,
+    COUNT(*) AS review_count,
+    ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 1) AS pct
+FROM classified
+GROUP BY category
+ORDER BY review_count DESC;
+
+
+-- ============================================================
+-- 3. AI_FILTER — ネガティブレビューを WHERE 句で絞り込む
+-- ============================================================
+-- AI_FILTER は SQL の WHERE 句に直接組み込めるセマンティックフィルタ。
+-- TRUE / FALSE を返すため、他の条件と AND/OR で自由に組み合わせられる。
+
+SELECT
+    review
+FROM harmonized.truck_reviews_v
+WHERE language = 'ja'
+  AND truck_brand_name = 'Smoky BBQ'
+  AND review IS NOT NULL
+  AND AI_FILTER(PROMPT('This review contains a specific complaint about food quality or taste: {0}', review));
+
+
+-- ============================================================
+-- 4. AI_SENTIMENT — アスペクト別センチメント分析
+-- ============================================================
+-- AI_SENTIMENT の第2引数にアスペクトを指定すると
+-- 「何に対して」ポジティブ/ネガティブかを切り分けられる。
+--
+-- 戻り値: { "categories": [{"name": "Food Quality", "sentiment": "negative", "score": 0.85}] }
+
+-- 4-a. 個別レビューのアスペクト別センチメント
+SELECT
+    review,
+    AI_SENTIMENT(review, ['Food Quality', 'Service', 'Value for Money']) AS sentiment
+FROM harmonized.truck_reviews_v
+WHERE language = 'ja'
+  AND truck_brand_name = 'Smoky BBQ'
+  AND review IS NOT NULL
+LIMIT 5;
+
+-- 4-b. アスペクト別のセンチメント分布集計
+WITH sentiments AS (
+    SELECT
+        c.value:name::STRING AS aspect,
+        c.value:sentiment::STRING AS sentiment
+    FROM harmonized.truck_reviews_v,
+        LATERAL FLATTEN(input => AI_SENTIMENT(review, ['Food Quality', 'Service', 'Value for Money']):categories) c
+    WHERE language = 'ja'
+      AND truck_brand_name = 'Smoky BBQ'
+      AND review IS NOT NULL
+)
+SELECT
+    aspect,
+    COUNT(*) AS total,
+    ROUND(COUNT_IF(sentiment = 'positive') * 100.0 / COUNT(*), 1) AS positive_pct,
+    ROUND(COUNT_IF(sentiment = 'negative') * 100.0 / COUNT(*), 1) AS negative_pct,
+    ROUND(COUNT_IF(sentiment = 'neutral')  * 100.0 / COUNT(*), 1) AS neutral_pct,
+    ROUND(COUNT_IF(sentiment = 'mixed')    * 100.0 / COUNT(*), 1) AS mixed_pct
+FROM sentiments
+GROUP BY aspect
+ORDER BY negative_pct DESC;
+
+
+-- ============================================================
+-- 5. AI_EXTRACT — メニュー名と不満点を構造化抽出
+-- ============================================================
+-- AI_EXTRACT はテキストから指定フィールドを JSON で抽出する。
+-- AI_COMPLETE と異なり、テキスト内の情報を「そのまま」取り出す用途に最適。
+
+SELECT
+    review,
+    AI_EXTRACT(
+        review,
+        {'menu_items': 'メニューアイテム名のリスト', 'complaint': '具体的な不満点', 'recommendation': '再来店するかどうか'}
+    ) AS extracted
+FROM harmonized.truck_reviews_v
+WHERE language = 'ja'
+  AND truck_brand_name = 'Smoky BBQ'
+  AND review IS NOT NULL
+LIMIT 10;
+
+
+-- ============================================================
+-- 6. AI_COMPLETE（構造化出力）— 改善提案の生成
+-- ============================================================
+-- AI_COMPLETE + response_format で、LLM に推論・要約させた結果を
+-- 決まった JSON スキーマで受け取れる。AI_EXTRACT が「抜き出し」なのに対し、
+-- AI_COMPLETE は「生成・推論」が可能。
+
+SELECT
+    review,
+    AI_COMPLETE(
+        'claude-sonnet-4-6',
+        '以下のフードトラックレビューを分析し、改善点と良い点と具体的なアクションを日本語で回答してください。\n\n' || review,
+        response_format => {
+            'type': 'json',
+            'schema': {
+                'type': 'object',
+                'properties': {
+                    'complaint':          {'type': 'string', 'description': '改善が必要な点。なければ「なし」'},
+                    'praise':             {'type': 'string', 'description': '良い点・称賛。なければ「なし」'},
+                    'recommended_action': {'type': 'string', 'description': '店舗が取るべき具体的アクション1つ'}
+                },
+                'required': ['complaint', 'praise', 'recommended_action']
+            }
+        }
+    )::VARIANT AS analysis
+FROM harmonized.truck_reviews_v
+WHERE language = 'ja'
+  AND truck_brand_name = 'Smoky BBQ'
+  AND review IS NOT NULL
+LIMIT 5;
+
+
+-- ============================================================
+-- 7. AI_AGG — 経営層向けエグゼクティブサマリーの生成
+-- ============================================================
+-- AI_AGG は複数行のテキストを LLM で集約する関数。
+-- コンテキストウィンドウを超えるデータにも対応（自動チャンク処理）。
+-- プロンプトで出力フォーマットを明示すると回答が安定する。
+
+SELECT
+    AI_AGG(
+        review,
+        'あなたは飲食コンサルタントです。以下のレビュー群を分析し、Smoky BBQ 東京店への改善提案を作成してください。
+
+必ず以下の形式で出力し、前置きや説明文は不要です:
+
+【顧客満足度の現状】
+（1〜2文で全体の傾向を要約）
+
+【改善すべき点 トップ3】
+1. [改善点1]
+2. [改善点2]
+3. [改善点3]
+
+【強みとして維持すべき点】
+- [強み1]
+- [強み2]
+
+【推奨アクション】
+（最も優先度の高い施策を1つ、具体的に記述）'
+    ) AS executive_summary
+FROM harmonized.truck_reviews_v
+WHERE language = 'ja'
+  AND truck_brand_name = 'Smoky BBQ'
+  AND review IS NOT NULL;
