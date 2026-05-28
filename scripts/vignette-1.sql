@@ -183,6 +183,16 @@ ORDER BY total_sales DESC;
       これにより、同一アカウント内のすべての仮想ウェアハウスとユーザーからグローバルにアクセス可能です。
 */
 
+-- 同じクエリを再実行 → キャッシュから即座に結果が返ります
+-- クエリ履歴で初回と2回目の実行時間を比較してみてください
+SELECT
+    o.truck_brand_name,
+    COUNT(DISTINCT o.order_id) AS order_count,
+    SUM(o.price) AS total_sales
+FROM analytics.orders_v o
+GROUP BY o.truck_brand_name
+ORDER BY total_sales DESC;
+
 -- より小さなデータセットで作業するので、ウェアハウスをスケールダウンします
 ALTER WAREHOUSE my_wh SET warehouse_size = 'XSmall';
 
