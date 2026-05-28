@@ -133,19 +133,6 @@ FROM TABLE(
     tb_101.INFORMATION_SCHEMA.TAG_REFERENCES_ALL_COLUMNS('tb_101.raw_customer.customer_loyalty', 'TABLE')
 );
 
--- 依存オブジェクト (customer_loyalty_v) へのタグ伝播確認
-SELECT
-    column_name,
-    tag_database,
-    tag_schema,
-    tag_name,
-    tag_value,
-    apply_method
-FROM TABLE(tb_101.INFORMATION_SCHEMA.TAG_REFERENCES_ALL_COLUMNS(
-    'tb_101.raw_customer.customer_loyalty', 'TABLE'
-));
-
-
 /*==================================================================================================
  3. Dynamic Masking Policy (カラムレベルセキュリティ)
    pii タグに紐付くマスキングポリシーで、ACCOUNTADMIN / TB_ADMIN 以外には PII を難読化する。
