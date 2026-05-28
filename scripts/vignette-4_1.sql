@@ -134,6 +134,7 @@ WITH sentiments AS (
         c.value:sentiment::STRING AS sentiment
     FROM harmonized.kitakata_reviews_ja r,
         LATERAL FLATTEN(input => AI_SENTIMENT(r.review_en, ['Food Quality', 'Service', 'Value for Money']):categories) c
+    WHERE c.value:name::STRING != 'overall'
 )
 SELECT
     aspect,
