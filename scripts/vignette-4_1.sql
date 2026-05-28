@@ -50,7 +50,7 @@ SELECT
     primary_city,
     date,
     review AS review_en,
-    AI_TRANSLATE(review, 'en', 'ja') AS review_ja
+    REPLACE(AI_TRANSLATE(review, 'en', 'ja'), '<BR>', '\n') AS review_ja
 FROM harmonized.truck_reviews_v
 WHERE language = 'en'
   AND truck_brand_name = 'Kitakata Ramen Bar'
