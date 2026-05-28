@@ -36,21 +36,30 @@ ALTER SESSION SET query_tag = '{"origin":"sf_sit-is","name":"tb_zts","version":{
 
 
 -- ============================================================
--- 2. AI_TRANSLATE — 英語レビューを日本語に翻訳
+-- 2. AI_TRANSLATE — 翻訳済みテーブルの作成
 -- ============================================================
 -- AI_TRANSLATE は 24 言語に対応したニューラル翻訳関数。
 -- ソース言語を '' にすると自動検出される。
--- ここでは英語レビューを日本語に翻訳し、以降のデモ基盤とする。
+-- ここでは英語レビューを日本語に翻訳し、テーブルとして保存する。
+-- 以降のセクションではこのテーブルを参照することで毎回翻訳コストを避ける。
 
+CREATE OR REPLACE TABLE harmonized.kitakata_reviews_ja AS
 SELECT
-    review AS original_en,
+    review_id,
+    truck_brand_name,
+    primary_city,
+    date,
+    review AS review_en,
     AI_TRANSLATE(review, 'en', 'ja') AS review_ja
 FROM harmonized.truck_reviews_v
 WHERE language = 'en'
   AND truck_brand_name = 'Kitakata Ramen Bar'
   AND primary_city = 'Tokyo'
   AND review IS NOT NULL
-LIMIT 5;
+LIMIT 50;
+
+-- 翻訳結果を確認
+SELECT review_en, review_ja FROM harmonized.kitakata_reviews_ja LIMIT 5;
 
 
 -- ============================================================
@@ -63,31 +72,22 @@ LIMIT 5;
 
 -- 3-a. 個別レビューの分類結果
 SELECT
-    review,
+    review_ja,
     AI_CLASSIFY(
-        review,
+        review_en,
         ['Food Quality', 'Service', 'Value for Money', 'Atmosphere']
     ) AS classification
-FROM harmonized.truck_reviews_v
-WHERE language = 'en'
-  AND truck_brand_name = 'Kitakata Ramen Bar'
-  AND primary_city = 'Tokyo'
-  AND review IS NOT NULL
+FROM harmonized.kitakata_reviews_ja
 LIMIT 5;
 
 -- 3-b. カテゴリ別の件数分布
 WITH classified AS (
     SELECT
         AI_CLASSIFY(
-            review,
+            review_en,
             ['Food Quality', 'Service', 'Value for Money', 'Atmosphere']
         ):labels[0]::STRING AS category
-    FROM harmonized.truck_reviews_v
-    WHERE language = 'en'
-      AND truck_brand_name = 'Kitakata Ramen Bar'
-      AND primary_city = 'Tokyo'
-      AND review IS NOT NULL
-    LIMIT 50
+    FROM harmonized.kitakata_reviews_ja
 )
 SELECT
     category,
@@ -106,15 +106,10 @@ ORDER BY review_count DESC;
 -- キーワード検索では拾えない「意味的に該当する」行を抽出できる。
 
 SELECT
-    review,
-    AI_TRANSLATE(review, 'en', 'ja') AS review_ja
-FROM harmonized.truck_reviews_v
-WHERE language = 'en'
-  AND truck_brand_name = 'Kitakata Ramen Bar'
-  AND primary_city = 'Tokyo'
-  AND review IS NOT NULL
-  AND AI_FILTER(PROMPT('This review contains a complaint about waiting time or slow service: {0}', review))
-LIMIT 5;
+    review_ja,
+    review_en
+FROM harmonized.kitakata_reviews_ja
+WHERE AI_FILTER(PROMPT('This review contains a complaint about waiting time or slow service: {0}', review_en));
 
 
 -- ============================================================
@@ -127,13 +122,9 @@ LIMIT 5;
 
 -- 5-a. 個別レビューのアスペクト別センチメント
 SELECT
-    review,
-    AI_SENTIMENT(review, ['Food Quality', 'Service', 'Value for Money']) AS sentiment
-FROM harmonized.truck_reviews_v
-WHERE language = 'en'
-  AND truck_brand_name = 'Kitakata Ramen Bar'
-  AND primary_city = 'Tokyo'
-  AND review IS NOT NULL
+    review_ja,
+    AI_SENTIMENT(review_en, ['Food Quality', 'Service', 'Value for Money']) AS sentiment
+FROM harmonized.kitakata_reviews_ja
 LIMIT 5;
 
 -- 5-b. アスペクト別センチメント分布の集計
@@ -141,15 +132,8 @@ WITH sentiments AS (
     SELECT
         c.value:name::STRING AS aspect,
         c.value:sentiment::STRING AS sentiment
-    FROM (
-        SELECT review FROM harmonized.truck_reviews_v
-        WHERE language = 'en'
-          AND truck_brand_name = 'Kitakata Ramen Bar'
-          AND primary_city = 'Tokyo'
-          AND review IS NOT NULL
-        LIMIT 30
-    ) r,
-    LATERAL FLATTEN(input => AI_SENTIMENT(r.review, ['Food Quality', 'Service', 'Value for Money']):categories) c
+    FROM harmonized.kitakata_reviews_ja r,
+        LATERAL FLATTEN(input => AI_SENTIMENT(r.review_en, ['Food Quality', 'Service', 'Value for Money']):categories) c
 )
 SELECT
     aspect,
@@ -171,18 +155,14 @@ ORDER BY negative_pct DESC;
 -- ここではレビューを日本語翻訳してから抽出する。
 
 SELECT
-    AI_TRANSLATE(review, 'en', 'ja') AS review_ja,
+    review_ja,
     AI_EXTRACT(
-        review,
+        review_en,
         {'menu_items': 'list of specific menu items mentioned',
          'complaint': 'specific complaint if any, otherwise null',
          'positive_point': 'what the customer liked'}
     ) AS extracted
-FROM harmonized.truck_reviews_v
-WHERE language = 'en'
-  AND truck_brand_name = 'Kitakata Ramen Bar'
-  AND primary_city = 'Tokyo'
-  AND review IS NOT NULL
+FROM harmonized.kitakata_reviews_ja
 LIMIT 10;
 
 
@@ -194,10 +174,10 @@ LIMIT 10;
 -- AI_COMPLETE は「生成・推論」が可能。
 
 SELECT
-    AI_TRANSLATE(review, 'en', 'ja') AS review_ja,
+    review_ja,
     AI_COMPLETE(
         'claude-sonnet-4-6',
-        '以下のラーメン店レビューを分析し、改善点・良い点・具体的アクションを日本語で回答してください。\n\n' || review,
+        '以下のラーメン店レビューを分析し、改善点・良い点・具体的アクションを日本語で回答してください。\n\n' || review_en,
         response_format => {
             'type': 'json',
             'schema': {
@@ -211,11 +191,7 @@ SELECT
             }
         }
     )::VARIANT AS analysis
-FROM harmonized.truck_reviews_v
-WHERE language = 'en'
-  AND truck_brand_name = 'Kitakata Ramen Bar'
-  AND primary_city = 'Tokyo'
-  AND review IS NOT NULL
+FROM harmonized.kitakata_reviews_ja
 LIMIT 5;
 
 
@@ -228,7 +204,7 @@ LIMIT 5;
 
 SELECT
     AI_AGG(
-        review,
+        review_en,
         'あなたは飲食コンサルタントです。以下のレビュー群を分析し、Kitakata Ramen Bar 東京店への改善提案を日本語で作成してください。
 
 必ず以下の形式で出力し、前置きや説明文は不要です:
@@ -248,11 +224,4 @@ SELECT
 【推奨アクション】
 （最も優先度の高い施策を1つ、具体的に記述）'
     ) AS executive_summary
-FROM (
-    SELECT review FROM harmonized.truck_reviews_v
-    WHERE language = 'en'
-      AND truck_brand_name = 'Kitakata Ramen Bar'
-      AND primary_city = 'Tokyo'
-      AND review IS NOT NULL
-    LIMIT 50
-);
+FROM harmonized.kitakata_reviews_ja;
