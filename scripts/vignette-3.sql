@@ -195,7 +195,7 @@ INSERT INTO governance.row_policy_map
 -- ACCOUNTADMIN / SYSADMIN は全行参照可能（バイパス）、それ以外はマップに従い絞り込む
 CREATE OR REPLACE ROW ACCESS POLICY governance.customer_loyalty_policy
     AS (country STRING) RETURNS BOOLEAN ->
-        CURRENT_ROLE() IN ('ACCOUNTADMIN', 'SYSADMIN')
+        CURRENT_ROLE() IN ('ACCOUNTADMIN', 'TB_ADMIN')
         OR EXISTS (
             SELECT 1
             FROM governance.row_policy_map rp
