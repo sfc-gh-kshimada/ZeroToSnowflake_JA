@@ -109,7 +109,7 @@ SELECT
     review_ja,
     review_en
 FROM harmonized.kitakata_reviews_ja
-WHERE AI_FILTER(PROMPT('This review contains a complaint about waiting time or slow service: {0}', review_en));
+WHERE AI_FILTER(PROMPT('料理の味や品質に不満がある: {0}', review_ja));
 
 
 -- ============================================================
