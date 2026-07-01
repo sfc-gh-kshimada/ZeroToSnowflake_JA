@@ -467,7 +467,7 @@ Snowsight のバジェットページを確認しましょう。
 
 ### SQL を取得して SQL ファイルに貼り付けます。
 
-**この[ファイル](https://github.com/sfc-gh-kshimada/ZeroToSnowflake_JA/blob/main/scripts/vignette-2.sql)の SQL を新しい SQL ファイルにコピーして貼り付け、Snowflake で手順に沿って進めてください。SQL ファイルの最後まで到達したら、ステップ 16 - Snowflake Cortex AI にスキップできます。**
+**この[ファイル](https://github.com/sfc-gh-kshimada/ZeroToSnowflake_JA/blob/main/scripts/vignette-2-1.sql)の SQL を新しい SQL ファイルにコピーして貼り付け、Snowflake で手順に沿って進めてください。SQL ファイルの最後まで到達したら、ステップ 16 - Snowflake Cortex AI にスキップできます。**
 
 ### 外部ステージの取り込み
 
@@ -734,6 +734,20 @@ Snowsight で DAG にアクセスするには：
 パイプラインの可視化が表示され、ベーステーブルからダイナミックテーブルへのデータフローが示されます。
 
 ![assets/vignette-2/dag.png](assets/vignette-2/dag.png)
+
+## CoCo in Snowsight でパイプラインを作ってみる（任意）
+
+### 概要
+
+Snowflake には Snowsight に統合された AI エージェント **CoCo (Cortex Code)** があります。自然言語のプロンプトから SQL の作成・実行までを行えます。このセクションは任意ですが、先ほど Vignette 2 で体験したダイナミックテーブルのパイプラインを、今度は自分でゼロから CoCo に作らせてみましょう。
+
+このハンズオン専用に、既存のデータや設定に影響を与えない隔離スキーマ `tb_101.coco_handson` を用意しています。CoCo にはこのスキーマの中だけで自由に作業してもらうので、他の Vignette の内容を壊す心配はありません。
+
+> **安全に試せる理由：** CoCo は `CREATE`・`INSERT`・`DROP` などの書き込み系 SQL を実行する前に必ず確認ダイアログを表示します（「今回のみ許可」「このチャットでは常に許可」などを選択可能）。またこのリポジトリには `AGENTS.md` というガードレールファイルが含まれており、CoCo に対して「`tb_101.coco_handson` 以外のオブジェクトは変更・削除しない」ことを指示しています。Git 連携済みのワークスペースとしてこのリポジトリを開くと（**Projects** » **Workspaces** » **+ Add New** » **Git Repository** から `https://github.com/sfc-gh-kshimada/ZeroToSnowflake_JA` を指定）、`AGENTS.md` が自動的に読み込まれます。通常のワークシートで試す場合でも、上記の確認ダイアログにより誤操作は防止されます。
+
+### 手順を取得します。
+
+**この[ファイル](https://github.com/sfc-gh-kshimada/ZeroToSnowflake_JA/blob/main/scripts/vignette-2-2.md)の手順に沿って、Snowsight の CoCo (Cortex Code) パネルで進めてください。SQL ファイルは不要です。完了したら、ステップ 16 - Snowflake Cortex AI にスキップできます。**
 
 ## Horizon によるガバナンス
 ![./assets/governance_header.png](./assets/governance_header.png)
