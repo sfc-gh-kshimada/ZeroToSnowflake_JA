@@ -213,6 +213,9 @@ GRANT DATABASE ROLE SNOWFLAKE.CORTEX_USER TO ROLE TB_DEV;
 GRANT USAGE ON SCHEMA TB_101.HARMONIZED TO ROLE TB_DEV;
 GRANT USAGE ON WAREHOUSE TB_DE_WH TO ROLE TB_DEV;
 
+-- CoCo in Snowsight ハンズオン用: 隔離スキーマ (tb_101.coco_handson) を
+-- CoCo 自身に作成させるための最小権限
+GRANT CREATE SCHEMA ON DATABASE tb_101 TO ROLE tb_data_engineer;
 
 -- raw_pos テーブルの作成
 USE ROLE sysadmin;
