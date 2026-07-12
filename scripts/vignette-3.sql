@@ -74,15 +74,7 @@ SELECT TOP 100 * FROM raw_customer.customer_loyalty;
    分類プロファイル (auto_tag=true) で PII カラムを自動検出し pii タグを付与する。
 ==================================================================================================*/
 
--- PII タグの作成と分類権限の付与
-USE ROLE accountadmin;
-
--- PII タグを作成する (PROPAGATE 設定で下流ビュー/CTAS 派生テーブルに自動伝播させる)
---   ON_DEPENDENCY_AND_DATA_MOVEMENT: ビュー依存 (CREATE VIEW) と データ移動 (CTAS / INSERT 等) 両方で伝播
---   * Enterprise Edition 以上で利用可能
-CREATE OR REPLACE TAG governance.pii
-    ALLOWED_VALUES 'TRUE', 'FALSE'
-    PROPAGATE = ON_DEPENDENCY_AND_DATA_MOVEMENT;
+USE ROLE securityadmin;
 
 -- tb_data_steward にタグ適用・分類実行の権限を付与する
 GRANT APPLY TAG ON ACCOUNT TO ROLE tb_data_steward;
@@ -90,8 +82,13 @@ GRANT EXECUTE AUTO CLASSIFICATION ON SCHEMA raw_customer TO ROLE tb_data_steward
 GRANT DATABASE ROLE SNOWFLAKE.CLASSIFICATION_ADMIN TO ROLE tb_data_steward;
 GRANT CREATE SNOWFLAKE.DATA_PRIVACY.CLASSIFICATION_PROFILE ON SCHEMA governance TO ROLE tb_data_steward;
 
--- 分類プロファイルの作成 (auto_tag を true にすることで PII カラムへ自動的にタグが付与される)
 USE ROLE tb_data_steward;
+
+CREATE OR REPLACE TAG governance.pii
+    ALLOWED_VALUES 'TRUE', 'FALSE'
+    PROPAGATE = ON_DEPENDENCY_AND_DATA_MOVEMENT;
+
+-- 分類プロファイルの作成 (auto_tag を true にすることで PII カラムへ自動的にタグが付与される)
 
 CREATE OR REPLACE SNOWFLAKE.DATA_PRIVACY.CLASSIFICATION_PROFILE
   governance.tb_classification_profile(
@@ -121,7 +118,6 @@ CALL governance.tb_classification_profile!SET_TAG_MAP(
 CALL SYSTEM$CLASSIFY('tb_101.raw_customer.customer_loyalty', 'tb_101.governance.tb_classification_profile');
 
 -- タグ付け結果の確認 (apply_method = AUTO となっていれば自動タグ付け成功)
-USE ROLE accountadmin;
 SELECT
     column_name,
     tag_database,
@@ -131,7 +127,8 @@ SELECT
     apply_method
 FROM TABLE(
     tb_101.INFORMATION_SCHEMA.TAG_REFERENCES_ALL_COLUMNS('tb_101.raw_customer.customer_loyalty', 'TABLE')
-);
+)
+ORDER BY column_name, tag_database, tag_name;
 
 /*==================================================================================================
  3. Dynamic Masking Policy (カラムレベルセキュリティ)
@@ -169,10 +166,6 @@ SELECT TOP 100 * FROM raw_customer.customer_loyalty;
 
 -- 動作確認 2: TB_ADMIN ロール → 元の値がそのまま表示される
 USE ROLE tb_admin;
-SELECT TOP 100 * FROM raw_customer.customer_loyalty;
-
--- 動作確認 3: ACCOUNTADMIN ロール → 元の値がそのまま表示される (緊急時アクセス用バイパス)
-USE ROLE accountadmin;
 SELECT TOP 100 * FROM raw_customer.customer_loyalty;
 
 
