@@ -191,12 +191,12 @@ INSERT INTO governance.row_policy_map
     VALUES('ja_analyst', 'Japan');
 
 -- 行アクセスポリシーの作成
--- バイパス: ACCOUNTADMIN / TB_ADMIN / TB_DATA_ENGINEER / TB_DEV / TB_DATA_STEWARD は全行参照可能
+-- バイパス: ACCOUNTADMIN / TB_ADMIN / TB_DATA_ENGINEER / TB_DATA_STEWARD は全行参照可能
 -- マップ登録済み（us_analyst / ja_analyst）: 許可された国のみ
 -- マップ未登録のその他ロール: 0 件
 CREATE OR REPLACE ROW ACCESS POLICY governance.customer_loyalty_policy
     AS (country STRING) RETURNS BOOLEAN ->
-        CURRENT_ROLE() IN ('ACCOUNTADMIN', 'TB_ADMIN', 'TB_DATA_ENGINEER', 'TB_DEV', 'TB_DATA_STEWARD')
+        CURRENT_ROLE() IN ('ACCOUNTADMIN', 'TB_ADMIN', 'TB_DATA_ENGINEER', 'TB_DATA_STEWARD')
         OR EXISTS (
             SELECT 1
             FROM governance.row_policy_map rp
@@ -231,7 +231,7 @@ ORDER BY cnt DESC;
 ==================================================================================================*/
 
 -- 下流ビューを新規作成 (PII カラムを参照)
-USE ROLE tb_data_engineer;
+USE ROLE tb_data_steward;
 USE WAREHOUSE tb_dev_wh;
 
 CREATE OR REPLACE VIEW governance.customer_pii_downstream_v
@@ -252,7 +252,6 @@ FROM raw_customer.customer_loyalty;
 -- 新規作成した下流ビューのタグ伝播確認
 -- PROPAGATE = ON_DEPENDENCY_AND_DATA_MOVEMENT を設定済みのため、上流テーブルのタグが伝播する
 -- (ACCOUNT_USAGE.TAG_REFERENCES は最大2時間の遅延あり / INFORMATION_SCHEMA はリアルタイム)
-USE ROLE accountadmin;
 SELECT
     column_name,
     tag_name,
@@ -262,7 +261,6 @@ FROM TABLE(
 );
 
 -- 既存の harmonized.customer_loyalty_metrics_v でも同様に伝播していることを確認
-USE ROLE accountadmin;
 SELECT
     column_name,
     tag_name,
@@ -280,10 +278,6 @@ FROM TABLE(
 USE ROLE accountadmin;
 SELECT TOP 50 * FROM tb_101.governance.customer_pii_downstream_v;
 
--- 動作確認 2: TB_ADMIN → Masking バイパス・Row Access は対象外なので全行
-USE ROLE tb_admin;
-SELECT TOP 50 * FROM tb_101.governance.customer_pii_downstream_v;
-
 -- 動作確認 3: US_ANALYST → Masking 対象・Row Access により米国のみ
 USE ROLE us_analyst;
 SELECT TOP 50 * FROM tb_101.governance.customer_pii_downstream_v;
@@ -291,19 +285,6 @@ SELECT TOP 50 * FROM tb_101.governance.customer_pii_downstream_v;
 -- 動作確認 4: JA_ANALYST → Masking 対象・Row Access により日本のみ
 USE ROLE ja_analyst;
 SELECT TOP 50 * FROM tb_101.governance.customer_pii_downstream_v;
-
--- 動作確認 5: PUBLIC → Masking 対象・Row Access マップ未登録 → 行は 0 件
-USE ROLE public;
-SELECT TOP 50 * FROM tb_101.governance.customer_pii_downstream_v;
-
-/*--
- ポイント:
- - 下流ビューを新規作成しただけで、上流テーブルに付与した pii タグが自動伝播 (apply_method = PROPAGATED)
- - タグ経由のマスキングポリシーも下流ビューに自動適用されるため、追加設定は不要
- - 行アクセスポリシーは「テーブル」に適用したものが、そのテーブルを参照するビューにも継承される
- - TB 系ロール（TB_ADMIN / TB_DATA_ENGINEER / TB_DEV / TB_DATA_STEWARD）はポリシー側でバイパス
- - us_analyst / ja_analyst は下流ビューでも国制限が維持される
---*/
 
 
 /*==================================================================================================
