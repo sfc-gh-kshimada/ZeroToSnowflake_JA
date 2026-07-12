@@ -233,11 +233,6 @@ COMMENT = 'Quickstarts S3 ステージ接続'
 url = 's3://sfquickstarts/frostbyte_tastybytes/'
 file_format = tb_101.public.csv_ff;
 
-CREATE OR REPLACE STAGE tb_101.public.truck_reviews_s3load
-COMMENT = 'トラックレビュー用ステージ'
-url = 's3://sfquickstarts/tastybytes-voc/'
-file_format = tb_101.public.csv_ff;
-
 /*--
  RAW ゾーン テーブルの作成
 --*/
@@ -561,12 +556,43 @@ SELECT
         cl.country;
 
 /*--
+ Git リポジトリ連携のセットアップ（データロード / Streamlit ソース取得で共用）
+--*/
+
+USE ROLE accountadmin;
+
+-- GitHub との API 統合
+CREATE OR REPLACE API INTEGRATION git_api_integration
+    API_PROVIDER = git_https_api
+    API_ALLOWED_PREFIXES = ('https://github.com/sfc-gh-kshimada/')
+    ENABLED = TRUE;
+
+-- Git リポジトリの登録と最新 main ブランチの取得
+CREATE OR REPLACE GIT REPOSITORY tb_101.public.ztsja_repo
+    API_INTEGRATION = git_api_integration
+    ORIGIN = 'https://github.com/sfc-gh-kshimada/ZeroToSnowflake_JA';
+
+ALTER GIT REPOSITORY tb_101.public.ztsja_repo FETCH;
+
+USE ROLE sysadmin;
+
+-- Git リポジトリからのデータロード用内部ステージ
+CREATE STAGE IF NOT EXISTS tb_101.public.git_data_load
+  COMMENT = 'Gitリポジトリからのデータロード用内部ステージ';
+
+/*--
  RAW ゾーン テーブルへのデータロード
 --*/
 
--- truck_reviews テーブルのロード
+-- truck_reviews テーブルのロード（Git リポジトリ → 内部ステージ経由）
+COPY FILES
+  INTO @tb_101.public.git_data_load
+  FROM @tb_101.public.ztsja_repo/branches/main/data/
+  FILES = ('raw_truck_reviews.csv.gz');
+
 COPY INTO tb_101.raw_support.truck_reviews
-FROM @tb_101.public.truck_reviews_s3load/raw_support/truck_reviews/;
+FROM @tb_101.public.git_data_load/raw_truck_reviews.csv.gz
+FILE_FORMAT = (TYPE = CSV COMPRESSION = GZIP FIELD_OPTIONALLY_ENCLOSED_BY = '"' SKIP_HEADER = 1);
 
 -- country テーブルのロード
 COPY INTO tb_101.raw_pos.country
@@ -656,11 +682,7 @@ GRANT USAGE ON SCHEMA snowflake_intelligence.agents TO ROLE TB_DEV;
 -- agents スキーマに対して CREATE AGENT 権限を付与する
 GRANT CREATE AGENT ON SCHEMA snowflake_intelligence.agents TO ROLE TB_DEV;
 
--- GitHub との API 統合を作成する
-CREATE OR REPLACE API INTEGRATION git_api_integration
-    API_PROVIDER = git_https_api
-    API_ALLOWED_PREFIXES = ('https://github.com/sfc-gh-kshimada/')
-    ENABLED = TRUE;
+-- GitHub との API 統合 (前半のデータロードセクションで作成済み) を再利用
 
 -- Snowflake Intelligence オブジェクトを作成する
 CREATE OR REPLACE SNOWFLAKE INTELLIGENCE SNOWFLAKE_INTELLIGENCE_OBJECT_DEFAULT;
@@ -690,14 +712,7 @@ CREATE TABLE IF NOT EXISTS tb_101.public.ai_playground_file_metadata (
     updated_at TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP()
 );
 
--- Streamlit アプリのソースコードを取得する Git Repository クローン
--- 既存の git_api_integration (https://github.com/sfc-gh-kshimada/) を再利用
-CREATE OR REPLACE GIT REPOSITORY tb_101.public.ztsja_repo
-    API_INTEGRATION = git_api_integration
-    ORIGIN = 'https://github.com/sfc-gh-kshimada/ZeroToSnowflake_JA';
-
--- 最新の main ブランチを取得
-ALTER GIT REPOSITORY tb_101.public.ztsja_repo FETCH;
+-- Streamlit アプリのソースコードを取得する Git Repository (前半のデータロードセクションで作成済み) を再利用
 
 -- コンピュートプール使用権限の付与
 GRANT USAGE, MONITOR ON COMPUTE POOL tb_compute_pool TO ROLE sysadmin;
