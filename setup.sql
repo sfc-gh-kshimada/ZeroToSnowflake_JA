@@ -208,6 +208,32 @@ GRANT ALL ON SCHEMA harmonized TO ROLE tb_analyst;
 GRANT ALL ON SCHEMA analytics TO ROLE tb_analyst;
 GRANT OPERATE, USAGE ON WAREHOUSE tb_analyst_wh TO ROLE tb_analyst;
 
+-- Vignette 3 Row Access Policy デモ用ロールの作成
+-- us_analyst / ja_analyst: 国別に参照可能な行を制限するデモロール
+-- tb_101 全体を SELECT できる状態で作成し、Row Access Policy で行レベルを絞る
+USE ROLE useradmin;
+CREATE ROLE IF NOT EXISTS us_analyst
+    COMMENT = 'Tasty Bytes 米国担当アナリスト（Row Access Policy デモ用）';
+CREATE ROLE IF NOT EXISTS ja_analyst
+    COMMENT = 'Tasty Bytes 日本担当アナリスト（Row Access Policy デモ用）';
+
+-- ロール階層: tb_data_engineer 配下に配置
+GRANT ROLE us_analyst TO ROLE tb_data_engineer;
+GRANT ROLE ja_analyst TO ROLE tb_data_engineer;
+
+-- tb_101 全体への参照権限を付与（行レベルの制御は Row Access Policy に委ねる）
+USE ROLE securityadmin;
+GRANT USAGE ON DATABASE tb_101 TO ROLE us_analyst;
+GRANT USAGE ON DATABASE tb_101 TO ROLE ja_analyst;
+GRANT USAGE ON ALL SCHEMAS IN DATABASE tb_101 TO ROLE us_analyst;
+GRANT USAGE ON ALL SCHEMAS IN DATABASE tb_101 TO ROLE ja_analyst;
+GRANT SELECT ON ALL TABLES IN DATABASE tb_101 TO ROLE us_analyst;
+GRANT SELECT ON ALL TABLES IN DATABASE tb_101 TO ROLE ja_analyst;
+GRANT SELECT ON ALL VIEWS IN DATABASE tb_101 TO ROLE us_analyst;
+GRANT SELECT ON ALL VIEWS IN DATABASE tb_101 TO ROLE ja_analyst;
+GRANT OPERATE, USAGE ON WAREHOUSE tb_analyst_wh TO ROLE us_analyst;
+GRANT OPERATE, USAGE ON WAREHOUSE tb_analyst_wh TO ROLE ja_analyst;
+
 -- Cortex Search サービスへの権限付与
 GRANT DATABASE ROLE SNOWFLAKE.CORTEX_USER TO ROLE TB_DEV;
 GRANT USAGE ON SCHEMA TB_101.HARMONIZED TO ROLE TB_DEV;

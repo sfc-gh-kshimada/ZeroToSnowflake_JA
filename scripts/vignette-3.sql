@@ -178,24 +178,32 @@ SELECT TOP 100 * FROM raw_customer.customer_loyalty;
 
 /*==================================================================================================
  4. Row Access Policy (行レベルセキュリティ)
-   ロールごとに参照可能な国を制限する。ACCOUNTADMIN / SYSADMIN は全行参照可能。
+   us_analyst / ja_analyst の参照可能な行を国で制限する。
+   TB 系ロール（TB_ADMIN / TB_DATA_ENGINEER / TB_DEV / TB_DATA_STEWARD）は全行参照可能。
 ==================================================================================================*/
 
 USE ROLE tb_data_steward;
 
 -- ポリシーマップテーブル: ロール ↔ 参照可能な国の対応表
+-- マップに登録したロールのみ行が絞られる（TB系ロールはポリシー側でバイパス）
 CREATE OR REPLACE TABLE governance.row_policy_map
     (role STRING, country_permission STRING);
 
--- tb_data_engineer は 'United States' の行のみ参照可能
+-- us_analyst は 'United States' の行のみ参照可能
 INSERT INTO governance.row_policy_map
-    VALUES('tb_data_engineer', 'United States');
+    VALUES('us_analyst', 'United States');
+
+-- ja_analyst は 'Japan' の行のみ参照可能
+INSERT INTO governance.row_policy_map
+    VALUES('ja_analyst', 'Japan');
 
 -- 行アクセスポリシーの作成
--- ACCOUNTADMIN / SYSADMIN は全行参照可能（バイパス）、それ以外はマップに従い絞り込む
+-- バイパス: ACCOUNTADMIN / TB_ADMIN / TB_DATA_ENGINEER / TB_DEV / TB_DATA_STEWARD は全行参照可能
+-- マップ登録済み（us_analyst / ja_analyst）: 許可された国のみ
+-- マップ未登録のその他ロール: 0 件
 CREATE OR REPLACE ROW ACCESS POLICY governance.customer_loyalty_policy
     AS (country STRING) RETURNS BOOLEAN ->
-        CURRENT_ROLE() IN ('ACCOUNTADMIN', 'TB_ADMIN')
+        CURRENT_ROLE() IN ('ACCOUNTADMIN', 'TB_ADMIN', 'TB_DATA_ENGINEER', 'TB_DEV', 'TB_DATA_STEWARD')
         OR EXISTS (
             SELECT 1
             FROM governance.row_policy_map rp
@@ -207,11 +215,15 @@ CREATE OR REPLACE ROW ACCESS POLICY governance.customer_loyalty_policy
 ALTER TABLE raw_customer.customer_loyalty
     ADD ROW ACCESS POLICY governance.customer_loyalty_policy ON (country);
 
--- 動作確認 1: TB_DATA_ENGINEER ロール → 米国の顧客のみ表示される
-USE ROLE tb_data_engineer;
+-- 動作確認 1: US_ANALYST → 米国の顧客のみ表示される
+USE ROLE us_analyst;
 SELECT TOP 100 * FROM raw_customer.customer_loyalty;
 
--- 動作確認 2: ACCOUNTADMIN ロール → 全行参照可能（バイパス）
+-- 動作確認 2: JA_ANALYST → 日本の顧客のみ表示される
+USE ROLE ja_analyst;
+SELECT TOP 100 * FROM raw_customer.customer_loyalty;
+
+-- 動作確認 3: TB_DATA_ENGINEER → バイパスのため全行参照可能
 USE ROLE accountadmin;
 SELECT country, COUNT(*) AS cnt
 FROM tb_101.raw_customer.customer_loyalty
@@ -279,11 +291,15 @@ SELECT TOP 50 * FROM tb_101.governance.customer_pii_downstream_v;
 USE ROLE tb_admin;
 SELECT TOP 50 * FROM tb_101.governance.customer_pii_downstream_v;
 
--- 動作確認 3: TB_DATA_ENGINEER → Masking 対象・Row Access により米国のみ
-USE ROLE tb_data_engineer;
+-- 動作確認 3: US_ANALYST → Masking 対象・Row Access により米国のみ
+USE ROLE us_analyst;
 SELECT TOP 50 * FROM tb_101.governance.customer_pii_downstream_v;
 
--- 動作確認 4: PUBLIC → Masking 対象・Row Access マップ未登録 → 行は 0 件
+-- 動作確認 4: JA_ANALYST → Masking 対象・Row Access により日本のみ
+USE ROLE ja_analyst;
+SELECT TOP 50 * FROM tb_101.governance.customer_pii_downstream_v;
+
+-- 動作確認 5: PUBLIC → Masking 対象・Row Access マップ未登録 → 行は 0 件
 USE ROLE public;
 SELECT TOP 50 * FROM tb_101.governance.customer_pii_downstream_v;
 
@@ -292,7 +308,8 @@ SELECT TOP 50 * FROM tb_101.governance.customer_pii_downstream_v;
  - 下流ビューを新規作成しただけで、上流テーブルに付与した pii タグが自動伝播 (apply_method = PROPAGATED)
  - タグ経由のマスキングポリシーも下流ビューに自動適用されるため、追加設定は不要
  - 行アクセスポリシーは「テーブル」に適用したものが、そのテーブルを参照するビューにも継承される
- - ACCOUNTADMIN は緊急時アクセス用にすべてのポリシーをバイパスする設計
+ - TB 系ロール（TB_ADMIN / TB_DATA_ENGINEER / TB_DEV / TB_DATA_STEWARD）はポリシー側でバイパス
+ - us_analyst / ja_analyst は下流ビューでも国制限が維持される
 --*/
 
 
