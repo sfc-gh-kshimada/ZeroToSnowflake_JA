@@ -8,7 +8,6 @@ Copyright(c): 2025 Snowflake Inc. All rights reserved.
   2. 自動分類 & PII タグ — 分類プロファイルで PII カラムを自動検出・タグ付け
   3. Dynamic Masking      — pii タグに紐付くマスキングポリシーで列値を難読化
   4. Row Access Policy    — ロールごとに参照可能な国を制限
-  5. Tag Propagation      — 下流ビューにタグ・ポリシーが自動伝播することを確認
 
 前提条件:
   - setup.sql 実行済み（tb_101 DB, raw_customer/governance スキーマ, tb_admin/tb_data_engineer 等のロール, tb_dev_wh ウェアハウス）
@@ -224,69 +223,6 @@ ORDER BY cnt DESC;
 
 
 /*==================================================================================================
- 5. Tag Propagation (タグとポリシーの下流ビュー伝播)
-   customer_loyalty を参照する下流ビューを新規作成し、pii タグおよびマスキング/行アクセスが
-   自動伝播することを確認する。
-==================================================================================================*/
-
--- 下流ビューを新規作成 (PII カラムを参照)
-USE ROLE tb_data_steward;
-USE WAREHOUSE tb_dev_wh;
-
-CREATE OR REPLACE VIEW governance.customer_pii_downstream_v
-    COMMENT = 'Tag Propagation 確認用: customer_loyalty の PII カラムを参照する下流ビュー'
-AS
-SELECT
-    customer_id,
-    first_name,
-    last_name,
-    e_mail,
-    phone_number,
-    birthday_date,
-    city,
-    postal_code,
-    country
-FROM raw_customer.customer_loyalty;
-
--- 新規作成した下流ビューのタグ伝播確認
--- PROPAGATE = ON_DEPENDENCY_AND_DATA_MOVEMENT を設定済みのため、上流テーブルのタグが伝播する
--- (ACCOUNT_USAGE.TAG_REFERENCES は最大2時間の遅延あり / INFORMATION_SCHEMA はリアルタイム)
-SELECT
-    column_name,
-    tag_name,
-    tag_value
-FROM TABLE(
-    tb_101.INFORMATION_SCHEMA.TAG_REFERENCES_ALL_COLUMNS('tb_101.governance.customer_pii_downstream_v', 'TABLE')
-);
-
--- 既存の harmonized.customer_loyalty_metrics_v でも同様に伝播していることを確認
-SELECT
-    column_name,
-    tag_name,
-    tag_value
-FROM TABLE(
-    tb_101.INFORMATION_SCHEMA.TAG_REFERENCES_ALL_COLUMNS('tb_101.harmonized.customer_loyalty_metrics_v', 'TABLE')
-);
-
--- ACCOUNT_USAGE 経由で伝播状況を見たい場合 (遅延あり)
--- SELECT object_database, object_schema, object_name, column_name, tag_name, tag_value
--- FROM SNOWFLAKE.ACCOUNT_USAGE.TAG_REFERENCES
--- WHERE tag_name = 'PII' AND tag_database = 'TB_101';
-
--- 動作確認 1: ACCOUNTADMIN → 下流ビューでもバイパス（全行・生値）
-USE ROLE accountadmin;
-SELECT TOP 50 * FROM tb_101.governance.customer_pii_downstream_v;
-
--- 動作確認 3: US_ANALYST → Masking 対象・Row Access により米国のみ
-USE ROLE us_analyst;
-SELECT TOP 50 * FROM tb_101.governance.customer_pii_downstream_v;
-
--- 動作確認 4: JA_ANALYST → Masking 対象・Row Access により日本のみ
-USE ROLE ja_analyst;
-SELECT TOP 50 * FROM tb_101.governance.customer_pii_downstream_v;
-
-
-/*==================================================================================================
  (オプション) クリーンアップ
    ハンズオン後に作成オブジェクトを削除する場合は以下のブロックを実行してください。
 ==================================================================================================*/
@@ -306,8 +242,7 @@ ALTER TAG tb_101.governance.pii UNSET
 DROP MASKING POLICY IF EXISTS tb_101.governance.mask_string_pii;
 DROP MASKING POLICY IF EXISTS tb_101.governance.mask_date_pii;
 
--- 下流ビューと分類プロファイル、タグの削除
-DROP VIEW IF EXISTS tb_101.governance.customer_pii_downstream_v;
+-- 分類プロファイルとタグの削除
 DROP SNOWFLAKE.DATA_PRIVACY.CLASSIFICATION_PROFILE IF EXISTS tb_101.governance.tb_classification_profile;
 DROP TAG IF EXISTS tb_101.governance.pii;
 
