@@ -57,6 +57,12 @@ GRANT SELECT ON ALL TABLES IN SCHEMA raw_customer TO ROLE tb_data_steward;
 GRANT ALL ON SCHEMA governance TO ROLE tb_data_steward;
 GRANT ALL ON ALL TABLES IN SCHEMA governance TO ROLE tb_data_steward;
 
+-- タグ適用・自動分類・分類プロファイル作成の権限（Section 2 で使用）
+GRANT APPLY TAG ON ACCOUNT TO ROLE tb_data_steward;
+GRANT EXECUTE AUTO CLASSIFICATION ON SCHEMA raw_customer TO ROLE tb_data_steward;
+GRANT DATABASE ROLE SNOWFLAKE.CLASSIFICATION_ADMIN TO ROLE tb_data_steward;
+GRANT CREATE SNOWFLAKE.DATA_PRIVACY.CLASSIFICATION_PROFILE ON SCHEMA governance TO ROLE tb_data_steward;
+
 -- 現在のユーザーに tb_data_steward を付与
 SET my_user = CURRENT_USER();
 GRANT ROLE tb_data_steward TO USER IDENTIFIER($my_user);
@@ -74,14 +80,7 @@ SELECT TOP 100 * FROM raw_customer.customer_loyalty;
    分類プロファイル (auto_tag=true) で PII カラムを自動検出し pii タグを付与する。
 ==================================================================================================*/
 
-USE ROLE securityadmin;
-
--- tb_data_steward にタグ適用・分類実行の権限を付与する
-GRANT APPLY TAG ON ACCOUNT TO ROLE tb_data_steward;
-GRANT EXECUTE AUTO CLASSIFICATION ON SCHEMA raw_customer TO ROLE tb_data_steward;
-GRANT DATABASE ROLE SNOWFLAKE.CLASSIFICATION_ADMIN TO ROLE tb_data_steward;
-GRANT CREATE SNOWFLAKE.DATA_PRIVACY.CLASSIFICATION_PROFILE ON SCHEMA governance TO ROLE tb_data_steward;
-
+-- Section 1 で必要な権限は付与済みのため、tb_data_steward で直接タグ・プロファイルを作成できる
 USE ROLE tb_data_steward;
 
 CREATE OR REPLACE TAG governance.pii
