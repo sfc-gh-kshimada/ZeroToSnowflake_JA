@@ -153,7 +153,7 @@ CREATE OR REPLACE SEMANTIC VIEW TB_101.SEMANTIC_LAYER.TASTY_BYTES_BUSINESS_ANALY
 
     DIMENSIONS (
         ORDERS.FRANCHISE_FLAG AS FRANCHISE_FLAG
-            WITH SYNONYMS = ('フランチャイズ', 'FC', '直営', 'franchise')
+            WITH SYNONYMS = ('フランチャイズ', 'FC', 'franchise')
             COMMENT = 'フランチャイズ店舗かどうか（1=フランチャイズ、0=直営）',
         ORDERS.ORDER_ID AS ORDER_ID
             COMMENT = '注文の一意識別子',
@@ -170,16 +170,16 @@ CREATE OR REPLACE SEMANTIC VIEW TB_101.SEMANTIC_LAYER.TASTY_BYTES_BUSINESS_ANALY
         ORDERS.MENU_ITEM_ID AS MENU_ITEM_ID
             COMMENT = 'メニューアイテムの一意識別子',
         ORDERS.MENU_ITEM_NAME AS MENU_ITEM_NAME
-            WITH SYNONYMS = ('メニュー名', 'アイテム名', 'menu item', 'dish name', '料理名')
+            WITH SYNONYMS = ('メニュー名', '料理名', 'dish name')
             COMMENT = '注文されたメニューアイテム名（Tonkotsu Ramen, Sugar Cone, Pastrami, Three Taco Combo Plate 等 全58種）',
         ORDERS.MENU_TYPE AS MENU_TYPE
-            WITH SYNONYMS = ('メニュータイプ', 'ジャンル', 'カテゴリ', 'menu category', 'food type', 'cuisine')
+            WITH SYNONYMS = ('メニュータイプ', 'カテゴリ', 'cuisine')
             COMMENT = 'メニューの種類（BBQ, Chinese, Crepes, Ethiopian, Grilled Cheese, Gyros, Hot Dogs, Ice Cream, Indian, Mac & Cheese, Poutine, Ramen, Sandwiches, Tacos, Vegetarian）',
         ORDERS.PRIMARY_CITY AS PRIMARY_CITY
             WITH SYNONYMS = ('都市', '市', 'city')
             COMMENT = '注文が発生した主要都市名（Tokyo, New York City, Paris, London, Seoul, Sydney 等 全30都市）',
         ORDERS.REGION AS REGION
-            WITH SYNONYMS = ('地域', '州', '県', 'state', 'region', 'prefecture')
+            WITH SYNONYMS = ('地域', '州', 'state', 'region')
             COMMENT = '注文が発生した地域・州（Kantō, California, Île-de-France, Greater London 等 全30地域）',
         ORDERS.ORDER_COUNTRY AS COUNTRY
             WITH SYNONYMS = ('国', 'country')
@@ -211,13 +211,13 @@ CREATE OR REPLACE SEMANTIC VIEW TB_101.SEMANTIC_LAYER.TASTY_BYTES_BUSINESS_ANALY
             WITH SYNONYMS = ('年月', 'year-month')
             COMMENT = '注文の年月（YYYY-MM形式、月別トレンド分析用）',
         CUSTOMER_LOYALTY.LOYALTY_CUSTOMER_ID AS CUSTOMER_ID
-            WITH SYNONYMS = ('顧客ID', 'ロイヤルティ顧客ID')
+            WITH SYNONYMS = ('ロイヤルティ顧客ID', 'loyalty customer id')
             COMMENT = '顧客ロイヤルティの顧客 ID',
         CUSTOMER_LOYALTY.CUSTOMER_CITY AS CITY
-            WITH SYNONYMS = ('居住都市', '顧客の都市')
+            WITH SYNONYMS = ('居住都市', '顧客の都市', 'customer city')
             COMMENT = '顧客の居住都市',
         CUSTOMER_LOYALTY.CUSTOMER_COUNTRY AS COUNTRY
-            WITH SYNONYMS = ('居住国', '顧客の国')
+            WITH SYNONYMS = ('居住国', '顧客の国', 'customer country')
             COMMENT = '顧客の居住国',
         CUSTOMER_LOYALTY.VISITED_LOCATION_COUNT AS ARRAY_SIZE(VISITED_LOCATION_IDS_ARRAY)
             COMMENT = '顧客が訪問したユニークロケーション数'
@@ -259,6 +259,18 @@ CREATE OR REPLACE SEMANTIC VIEW TB_101.SEMANTIC_LAYER.TASTY_BYTES_BUSINESS_ANALY
         ORDERS.UNIQUE_MENU_ITEMS AS COUNT(DISTINCT ORDERS.MENU_ITEM_NAME)
             WITH SYNONYMS = ('メニュー数', 'menu item count')
             COMMENT = '販売されたユニークメニューアイテム数',
+        ORDERS.MALE_CUSTOMERS AS COUNT(DISTINCT IFF(ORDERS.GENDER = 'Male', ORDERS.CUSTOMER_ID, NULL))
+            WITH SYNONYMS = ('男性顧客数', 'male customers')
+            COMMENT = '男性のユニーク顧客数',
+        ORDERS.FEMALE_CUSTOMERS AS COUNT(DISTINCT IFF(ORDERS.GENDER = 'Female', ORDERS.CUSTOMER_ID, NULL))
+            WITH SYNONYMS = ('女性顧客数', 'female customers')
+            COMMENT = '女性のユニーク顧客数',
+        ORDERS.FRANCHISE_REVENUE AS SUM(IFF(ORDERS.FRANCHISE_FLAG = 1, ORDERS.ORDER_TOTAL, 0))
+            WITH SYNONYMS = ('フランチャイズ売上', 'franchise revenue')
+            COMMENT = 'フランチャイズ店舗の売上合計',
+        ORDERS.DIRECT_REVENUE AS SUM(IFF(ORDERS.FRANCHISE_FLAG = 0, ORDERS.ORDER_TOTAL, 0))
+            WITH SYNONYMS = ('直営売上', 'direct revenue', 'corporate revenue')
+            COMMENT = '直営店舗の売上合計',
         CUSTOMER_LOYALTY.TOTAL_CUSTOMER_SALES AS SUM(CUSTOMER_LOYALTY.TOTAL_SALES)
             WITH SYNONYMS = ('顧客累計売上合計', 'total lifetime sales')
             COMMENT = '全顧客の累計売上合計',
@@ -282,7 +294,21 @@ CREATE OR REPLACE SEMANTIC VIEW TB_101.SEMANTIC_LAYER.TASTY_BYTES_BUSINESS_ANALY
             COMMENT = 'フードトラック1台当たりの平均売上（TOTAL_REVENUE ÷ UNIQUE_TRUCKS）',
         ORDERS.REVENUE_PER_LOCATION AS ORDERS.TOTAL_REVENUE / NULLIF(ORDERS.UNIQUE_LOCATIONS, 0)
             WITH SYNONYMS = ('ロケーション当たり売上', 'revenue per location', 'location revenue')
-            COMMENT = 'ロケーション1拠点当たりの平均売上（TOTAL_REVENUE ÷ UNIQUE_LOCATIONS）'
+            COMMENT = 'ロケーション1拠点当たりの平均売上（TOTAL_REVENUE ÷ UNIQUE_LOCATIONS）',
+        ORDERS.REVENUE_YOY_GROWTH_PCT AS
+            (SUM(ORDERS.ORDER_TOTAL) - LAG(SUM(ORDERS.ORDER_TOTAL)) OVER (ORDER BY YEAR(ORDERS.ORDER_DATE)))
+            / NULLIF(LAG(SUM(ORDERS.ORDER_TOTAL)) OVER (ORDER BY YEAR(ORDERS.ORDER_DATE)), 0) * 100
+            WITH SYNONYMS = ('前年比成長率', 'YoY growth', '年成長率', 'year over year')
+            COMMENT = '前年比の売上成長率（%）。ORDER_YEAR ディメンションと組み合わせて使用。',
+        ORDERS.REVENUE_MOM_GROWTH_PCT AS
+            (SUM(ORDERS.ORDER_TOTAL) - LAG(SUM(ORDERS.ORDER_TOTAL)) OVER (ORDER BY TO_CHAR(ORDERS.ORDER_DATE, 'YYYY-MM')))
+            / NULLIF(LAG(SUM(ORDERS.ORDER_TOTAL)) OVER (ORDER BY TO_CHAR(ORDERS.ORDER_DATE, 'YYYY-MM')), 0) * 100
+            WITH SYNONYMS = ('前月比成長率', 'MoM growth', '月成長率', 'month over month')
+            COMMENT = '前月比の売上成長率（%）。ORDER_YEAR_MONTH ディメンションと組み合わせて使用。',
+        ORDERS.CUMULATIVE_REVENUE AS
+            SUM(SUM(ORDERS.ORDER_TOTAL)) OVER (ORDER BY YEAR(ORDERS.ORDER_DATE) ASC)
+            WITH SYNONYMS = ('累計売上', 'cumulative revenue', 'running total')
+            COMMENT = '累計売上（年順の累積合計）'
     )
 
     COMMENT = 'Tasty Bytes エグゼクティブアナリティクス用セマンティックビュー。注文データと顧客ロイヤルティデータを統合し、売上・注文・顧客行動を自然言語でクエリ可能。'
@@ -302,6 +328,7 @@ CREATE OR REPLACE SEMANTIC VIEW TB_101.SEMANTIC_LAYER.TASTY_BYTES_BUSINESS_ANALY
 - 年・月・四半期での集計には ORDER_YEAR / ORDER_MONTH / ORDER_QUARTER を使用すること。
 - 年月での集計やトレンド分析には ORDER_YEAR_MONTH を使用すること。
 - 直近 N 期間のような相対期間は ORDER_DATE に対して DATEADD / DATEDIFF を使用すること。
+- REVENUE_YOY_GROWTH_PCT / REVENUE_MOM_GROWTH_PCT / CUMULATIVE_REVENUE などの window function を含む metric を使う場合は、DIMENSIONS に ORDER_DATE を必ず含めること（ORDER_YEAR や ORDER_YEAR_MONTH と併用可）。
 
 ランキング・集計のルール:
 - ランキング系の質問では合計値や件数の降順でソートすること。
@@ -324,12 +351,8 @@ CREATE OR REPLACE SEMANTIC VIEW TB_101.SEMANTIC_LAYER.TASTY_BYTES_BUSINESS_ANALY
 - 「売上を分析して」のような曖昧な質問にはトラックブランド別の総売上と注文件数を返すこと。
 - 「人気メニュー」のような質問には注文件数と総売上の両方を返すこと。
 
-データ範囲に関する制約:
-- このデータセットには 2019年1月1日〜2022年11月1日 のデータのみ含まれている。
-- 2023年以降や 2019年より前の特定年を求めるクエリには SQL を生成しないこと。
-  代わりに「このデータには [指定年] のデータは含まれていません。
-  利用可能なデータは 2019〜2022 年です。2019〜2022 年のデータで分析しますか？」
-  と日本語で回答すること。
+データ範囲:
+- このデータセットには 2019年1月1日〜2022年11月1日 のデータのみ含まれる。範囲外の年に関する対応は AI_QUESTION_CATEGORIZATION 側のルールに従うこと。
 $$
 
     AI_QUESTION_CATEGORIZATION $$
@@ -374,6 +397,23 @@ $$
                 DIMENSIONS ORDERS.PRIMARY_CITY
                 METRICS ORDERS.TOTAL_ORDERS, ORDERS.TOTAL_REVENUE
             ) ORDER BY TOTAL_ORDERS DESC LIMIT 10'
+        ),
+        loyalty_ltv_by_country AS (
+            QUESTION 'ロイヤルティ会員の居住国別の平均 LTV は？'
+            ONBOARDING_QUESTION TRUE
+            SQL 'SELECT * FROM SEMANTIC_VIEW(
+                TB_101.SEMANTIC_LAYER.TASTY_BYTES_BUSINESS_ANALYTICS
+                DIMENSIONS CUSTOMER_LOYALTY.CUSTOMER_COUNTRY
+                METRICS CUSTOMER_LOYALTY.AVG_CUSTOMER_SALES, CUSTOMER_LOYALTY.LOYALTY_CUSTOMER_COUNT
+            ) ORDER BY AVG_CUSTOMER_SALES DESC'
+        ),
+        revenue_yoy_growth AS (
+            QUESTION '年別の売上と前年比成長率は？'
+            SQL 'SELECT * FROM SEMANTIC_VIEW(
+                TB_101.SEMANTIC_LAYER.TASTY_BYTES_BUSINESS_ANALYTICS
+                DIMENSIONS ORDERS.ORDER_YEAR
+                METRICS ORDERS.TOTAL_REVENUE, ORDERS.REVENUE_YOY_GROWTH_PCT
+            ) ORDER BY ORDER_YEAR'
         )
     )
 
