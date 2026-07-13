@@ -16,8 +16,8 @@ Copyright(c): 2025 Snowflake Inc. All rights reserved.
 
 ポリシー設計方針:
   - ACCOUNTADMIN は緊急時アクセス用途として全ポリシーをバイパス（マスクなし・全行参照可）
-  - Masking バイパス: ACCOUNTADMIN, TB_ADMIN
-  - Row Access バイパス: ACCOUNTADMIN, SYSADMIN
+  - Masking バイパス:    ACCOUNTADMIN, TB_ADMIN, TB_DATA_ENGINEER, TB_DATA_STEWARD
+  - Row Access バイパス: ACCOUNTADMIN, TB_ADMIN, TB_DATA_ENGINEER, TB_DATA_STEWARD
 ****************************************************************************************************/
 
 -- セッションの初期設定
@@ -135,20 +135,20 @@ ORDER BY column_name, tag_database, tag_name;
 
 USE ROLE tb_data_steward;
 
--- 文字列型 PII 用 (ACCOUNTADMIN / TB_ADMIN 以外は '****MASKED****' で表示)
+-- 文字列型 PII 用 (TB 系ロールは生値を参照、その他は '****MASKED****' で表示)
 CREATE OR REPLACE MASKING POLICY governance.mask_string_pii AS (original_value STRING)
 RETURNS STRING ->
   CASE WHEN
-    CURRENT_ROLE() NOT IN ('ACCOUNTADMIN', 'TB_ADMIN')
+    CURRENT_ROLE() NOT IN ('ACCOUNTADMIN', 'TB_ADMIN', 'TB_DATA_ENGINEER', 'TB_DATA_STEWARD')
     THEN '****MASKED****'
     ELSE original_value
   END;
 
--- DATE 型 PII 用 (ACCOUNTADMIN / TB_ADMIN 以外は年初日に丸めて表示)
+-- DATE 型 PII 用 (TB 系ロールは生値を参照、その他は年初日に丸めて表示)
 CREATE OR REPLACE MASKING POLICY governance.mask_date_pii AS (original_value DATE)
 RETURNS DATE ->
   CASE WHEN
-    CURRENT_ROLE() NOT IN ('ACCOUNTADMIN', 'TB_ADMIN')
+    CURRENT_ROLE() NOT IN ('ACCOUNTADMIN', 'TB_ADMIN', 'TB_DATA_ENGINEER', 'TB_DATA_STEWARD')
     THEN DATE_TRUNC('year', original_value)
     ELSE original_value
   END;
