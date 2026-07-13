@@ -58,60 +58,66 @@ LIMIT 10;
 --
 -- 結果をテーブルに保存し、後続の集計クエリを高速化・再実行コストを削減する。
 
--- 3-a. 全レビューを AI で多面評価してテーブルに保存
+-- 3-a. 全レビューを AI で多面評価してテーブルに保存（JSON をカラムにパース済み）
 CREATE OR REPLACE TABLE harmonized.kitakata_reviews_analysis AS
+WITH raw_analysis AS (
+    SELECT
+        review_id,
+        date,
+        review,
+        AI_COMPLETE(
+            'claude-sonnet-4-6',
+            'Analyze the following ramen restaurant review and respond in JSON only.' || CHR(10) || CHR(10) || review,
+            response_format => {
+                'type': 'json',
+                'schema': {
+                    'type': 'object',
+                    'properties': {
+                        'is_complaint':   {'type': 'boolean', 'description': 'true if the review contains a complaint or dissatisfaction'},
+                        'category':       {'type': 'string',  'description': 'Primary topic: Food Quality, Service, Value for Money, Atmosphere, or Other'},
+                        'sentiment':      {'type': 'string',  'description': 'Overall sentiment: positive, negative, neutral, or mixed'},
+                        'key_issue':      {'type': 'string',  'description': 'Main complaint or issue. null if no complaint'},
+                        'mentioned_item': {'type': 'string',  'description': 'Specific menu item mentioned. null if none'}
+                    },
+                    'required': ['is_complaint', 'category', 'sentiment', 'key_issue', 'mentioned_item']
+                }
+            }
+        )::VARIANT AS analysis
+    FROM harmonized.truck_reviews_v
+    WHERE truck_brand_name = 'Kitakata Ramen Bar'
+      AND primary_city = 'Tokyo'
+      AND review IS NOT NULL
+)
 SELECT
     review_id,
     date,
     review,
-    AI_COMPLETE(
-        'claude-sonnet-4-6',
-        'Analyze the following ramen restaurant review and respond in JSON only.' || CHR(10) || CHR(10) || review,
-        response_format => {
-            'type': 'json',
-            'schema': {
-                'type': 'object',
-                'properties': {
-                    'is_complaint':   {'type': 'boolean', 'description': 'true if the review contains a complaint or dissatisfaction'},
-                    'category':       {'type': 'string',  'description': 'Primary topic: Food Quality, Service, Value for Money, Atmosphere, or Other'},
-                    'sentiment':      {'type': 'string',  'description': 'Overall sentiment: positive, negative, neutral, or mixed'},
-                    'key_issue':      {'type': 'string',  'description': 'Main complaint or issue. null if no complaint'},
-                    'mentioned_item': {'type': 'string',  'description': 'Specific menu item mentioned. null if none'}
-                },
-                'required': ['is_complaint', 'category', 'sentiment', 'key_issue', 'mentioned_item']
-            }
-        }
-    )::VARIANT AS analysis
-FROM harmonized.truck_reviews_v
-WHERE truck_brand_name = 'Kitakata Ramen Bar'
-  AND primary_city = 'Tokyo'
-  AND review IS NOT NULL;
+    analysis:is_complaint::BOOLEAN   AS is_complaint,
+    analysis:category::STRING        AS category,
+    analysis:sentiment::STRING       AS sentiment,
+    analysis:key_issue::STRING       AS key_issue,
+    NULLIF(analysis:mentioned_item::STRING, 'null') AS mentioned_item
+FROM raw_analysis;
 
 -- 3-b. 分析結果サンプルの確認
-SELECT
-    review,
-    analysis:is_complaint::BOOLEAN   AS is_complaint,
-    analysis:category::STRING         AS category,
-    analysis:sentiment::STRING        AS sentiment,
-    analysis:key_issue::STRING        AS key_issue,
-    analysis:mentioned_item::STRING   AS mentioned_item
+SELECT review, is_complaint, category, sentiment, key_issue, mentioned_item
 FROM harmonized.kitakata_reviews_analysis
 LIMIT 5;
 
 -- 3-c. KPI サマリー: クレーム率とセンチメント内訳
 SELECT
-    COUNT(*)                                                          AS total_reviews,
-    COUNT_IF(analysis:is_complaint::BOOLEAN)                          AS complaint_count,
-    ROUND(COUNT_IF(analysis:is_complaint::BOOLEAN) * 100.0 / COUNT(*), 1) AS complaint_rate_pct,
-    COUNT_IF(analysis:sentiment::STRING = 'positive')                 AS positive_count,
-    COUNT_IF(analysis:sentiment::STRING = 'negative')                 AS negative_count,
-    COUNT_IF(analysis:sentiment::STRING = 'mixed')                    AS mixed_count,
-    COUNT_IF(analysis:sentiment::STRING = 'neutral')                  AS neutral_count
+    COUNT(*)                                                        AS total_reviews,
+    COUNT_IF(is_complaint)                                          AS complaint_count,
+    ROUND(COUNT_IF(is_complaint) * 100.0 / COUNT(*), 1)             AS complaint_rate_pct,
+    ROUND(COUNT_IF(sentiment = 'positive') * 100.0 / COUNT(*), 1)   AS positive_rate_pct,
+    ROUND(COUNT_IF(sentiment = 'negative') * 100.0 / COUNT(*), 1)   AS negative_rate_pct,
+    ROUND(COUNT_IF(sentiment = 'mixed')    * 100.0 / COUNT(*), 1)   AS mixed_rate_pct,
+    ROUND(COUNT_IF(sentiment = 'neutral')  * 100.0 / COUNT(*), 1)   AS neutral_rate_pct
 FROM harmonized.kitakata_reviews_analysis;
 
 -- 3-d. カテゴリ別件数分布
 SELECT
-    analysis:category::STRING AS category,
+    category,
     COUNT(*) AS review_count,
     ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 1) AS pct
 FROM harmonized.kitakata_reviews_analysis
@@ -120,24 +126,23 @@ ORDER BY review_count DESC;
 
 -- 3-e. センチメント×カテゴリのクロス集計
 SELECT
-    analysis:category::STRING  AS category,
-    analysis:sentiment::STRING AS sentiment,
-    COUNT(*)                   AS count
+    category,
+    sentiment,
+    COUNT(*) AS count
 FROM harmonized.kitakata_reviews_analysis
 GROUP BY category, sentiment
 ORDER BY category, count DESC;
 
 -- 3-f. メニューアイテム別の評価サマリー
 SELECT
-    analysis:mentioned_item::STRING AS menu_item,
+    mentioned_item AS menu_item,
     COUNT(*) AS mention_count,
-    ROUND(COUNT_IF(analysis:is_complaint::BOOLEAN) * 100.0 / COUNT(*), 1) AS complaint_rate_pct,
-    ROUND(COUNT_IF(analysis:sentiment::STRING = 'positive') * 100.0 / COUNT(*), 1) AS positive_pct,
-    ROUND(COUNT_IF(analysis:sentiment::STRING = 'negative') * 100.0 / COUNT(*), 1) AS negative_pct,
-    ROUND(COUNT_IF(analysis:sentiment::STRING = 'mixed') * 100.0 / COUNT(*), 1) AS mixed_pct
+    ROUND(COUNT_IF(is_complaint) * 100.0 / COUNT(*), 1)              AS complaint_rate_pct,
+    ROUND(COUNT_IF(sentiment = 'positive') * 100.0 / COUNT(*), 1)    AS positive_pct,
+    ROUND(COUNT_IF(sentiment = 'negative') * 100.0 / COUNT(*), 1)    AS negative_pct,
+    ROUND(COUNT_IF(sentiment = 'mixed') * 100.0 / COUNT(*), 1)       AS mixed_pct
 FROM harmonized.kitakata_reviews_analysis
-WHERE analysis:mentioned_item IS NOT NULL
-  AND analysis:mentioned_item::STRING != 'null'
+WHERE mentioned_item IS NOT NULL
 GROUP BY menu_item
 ORDER BY mention_count DESC
 LIMIT 10;
@@ -146,11 +151,10 @@ LIMIT 10;
 -- ============================================================
 -- 4. AI_AGG — 経営層向けエグゼクティブサマリー
 -- ============================================================
--- AI_AGG は複数行のテキストを LLM で集約する関数。
--- コンテキストウィンドウを超えるデータにも対応（自動チャンク処理）。
--- 蓄積したレビュー全件から店舗運営の改善提案を生成する。
+-- レビュー全体をカテゴリごとに店舗運営の改善提案を生成する。
 
 SELECT
+    category,
     AI_AGG(
         review,
         'You are a restaurant consultant. Analyze the following customer reviews for Kitakata Ramen Bar in Tokyo and provide improvement recommendations in Japanese.
@@ -173,4 +177,5 @@ Reply ONLY in the following format with no preamble:
 【推奨アクション】
 （最も優先度の高い施策を1つ、具体的に記述）'
     ) AS executive_summary
-FROM harmonized.kitakata_reviews_analysis;
+FROM harmonized.kitakata_reviews_analysis
+GROUP BY category;
