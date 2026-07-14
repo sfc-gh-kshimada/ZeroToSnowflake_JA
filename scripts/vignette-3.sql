@@ -130,7 +130,7 @@ ORDER BY column_name, tag_database, tag_name;
 
 /*==================================================================================================
  3. Dynamic Masking Policy (カラムレベルセキュリティ)
-   pii タグに紐付くマスキングポリシーで、ACCOUNTADMIN / TB_ADMIN 以外には PII を難読化する。
+   pii タグに紐付くマスキングポリシーで、ACCOUNTADMIN / TB_ADMIN / TB_DATA_ENGINEER / TB_DATA_STEWARD 以外には PII を難読化する。
 ==================================================================================================*/
 
 USE ROLE tb_data_steward;
@@ -215,7 +215,7 @@ USE ROLE ja_analyst;
 SELECT TOP 100 * FROM raw_customer.customer_loyalty;
 
 -- 動作確認 3: TB_DATA_ENGINEER → バイパスのため全行参照可能
-USE ROLE accountadmin;
+USE ROLE tb_data_engineer;
 SELECT country, COUNT(*) AS cnt
 FROM tb_101.raw_customer.customer_loyalty
 GROUP BY country

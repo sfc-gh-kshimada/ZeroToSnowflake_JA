@@ -59,7 +59,7 @@ LIMIT 10;
 -- 結果をテーブルに保存し、後続の集計クエリを高速化・再実行コストを削減する。
 
 -- 3-a. 全レビューを AI で多面評価してテーブルに保存（JSON をカラムにパース済み）
-CREATE OR REPLACE TABLE harmonized.kitakata_reviews_analysis AS
+CREATE OR REPLACE TABLE analytics.kitakata_reviews_analysis AS
 WITH raw_analysis AS (
     SELECT
         review_id,
@@ -101,7 +101,7 @@ FROM raw_analysis;
 
 -- 3-b. 分析結果サンプルの確認
 SELECT review, is_complaint, category, sentiment, key_issue, mentioned_item
-FROM harmonized.kitakata_reviews_analysis
+FROM analytics.kitakata_reviews_analysis
 LIMIT 5;
 
 -- 3-c. KPI サマリー: クレーム率とセンチメント内訳
@@ -113,14 +113,14 @@ SELECT
     ROUND(COUNT_IF(sentiment = 'negative') * 100.0 / COUNT(*), 1)   AS negative_rate_pct,
     ROUND(COUNT_IF(sentiment = 'mixed')    * 100.0 / COUNT(*), 1)   AS mixed_rate_pct,
     ROUND(COUNT_IF(sentiment = 'neutral')  * 100.0 / COUNT(*), 1)   AS neutral_rate_pct
-FROM harmonized.kitakata_reviews_analysis;
+FROM analytics.kitakata_reviews_analysis;
 
 -- 3-d. カテゴリ別件数分布
 SELECT
     category,
     COUNT(*) AS review_count,
     ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 1) AS pct
-FROM harmonized.kitakata_reviews_analysis
+FROM analytics.kitakata_reviews_analysis
 GROUP BY category
 ORDER BY review_count DESC;
 
@@ -129,7 +129,7 @@ SELECT
     category,
     sentiment,
     COUNT(*) AS count
-FROM harmonized.kitakata_reviews_analysis
+FROM analytics.kitakata_reviews_analysis
 GROUP BY category, sentiment
 ORDER BY category, count DESC;
 
@@ -141,7 +141,7 @@ SELECT
     ROUND(COUNT_IF(sentiment = 'positive') * 100.0 / COUNT(*), 1)    AS positive_pct,
     ROUND(COUNT_IF(sentiment = 'negative') * 100.0 / COUNT(*), 1)    AS negative_pct,
     ROUND(COUNT_IF(sentiment = 'mixed') * 100.0 / COUNT(*), 1)       AS mixed_pct
-FROM harmonized.kitakata_reviews_analysis
+FROM analytics.kitakata_reviews_analysis
 WHERE mentioned_item IS NOT NULL
 GROUP BY menu_item
 ORDER BY mention_count DESC
@@ -177,5 +177,5 @@ Reply ONLY in the following format with no preamble:
 【推奨アクション】
 （最も優先度の高い施策を1つ、具体的に記述）'
     ) AS executive_summary
-FROM harmonized.kitakata_reviews_analysis
+FROM analytics.kitakata_reviews_analysis
 GROUP BY category;

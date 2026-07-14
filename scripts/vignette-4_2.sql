@@ -295,21 +295,7 @@ CREATE OR REPLACE SEMANTIC VIEW TB_101.SEMANTIC_LAYER.TASTY_BYTES_BUSINESS_ANALY
             COMMENT = 'フードトラック1台当たりの平均売上（TOTAL_REVENUE ÷ UNIQUE_TRUCKS）',
         ORDERS.REVENUE_PER_LOCATION AS ORDERS.TOTAL_REVENUE / NULLIF(ORDERS.UNIQUE_LOCATIONS, 0)
             WITH SYNONYMS = ('ロケーション当たり売上', 'revenue per location', 'location revenue')
-            COMMENT = 'ロケーション1拠点当たりの平均売上（TOTAL_REVENUE ÷ UNIQUE_LOCATIONS）',
-        ORDERS.REVENUE_YOY_GROWTH_PCT AS
-            (SUM(ORDERS.ORDER_TOTAL) - LAG(SUM(ORDERS.ORDER_TOTAL)) OVER (ORDER BY YEAR(ORDERS.ORDER_DATE)))
-            / NULLIF(LAG(SUM(ORDERS.ORDER_TOTAL)) OVER (ORDER BY YEAR(ORDERS.ORDER_DATE)), 0) * 100
-            WITH SYNONYMS = ('前年比成長率', 'YoY growth', '年成長率', 'year over year')
-            COMMENT = '前年比の売上成長率（%）。ORDER_YEAR ディメンションと組み合わせて使用。',
-        ORDERS.REVENUE_MOM_GROWTH_PCT AS
-            (SUM(ORDERS.ORDER_TOTAL) - LAG(SUM(ORDERS.ORDER_TOTAL)) OVER (ORDER BY TO_CHAR(ORDERS.ORDER_DATE, 'YYYY-MM')))
-            / NULLIF(LAG(SUM(ORDERS.ORDER_TOTAL)) OVER (ORDER BY TO_CHAR(ORDERS.ORDER_DATE, 'YYYY-MM')), 0) * 100
-            WITH SYNONYMS = ('前月比成長率', 'MoM growth', '月成長率', 'month over month')
-            COMMENT = '前月比の売上成長率（%）。ORDER_YEAR_MONTH ディメンションと組み合わせて使用。',
-        ORDERS.CUMULATIVE_REVENUE AS
-            SUM(SUM(ORDERS.ORDER_TOTAL)) OVER (ORDER BY YEAR(ORDERS.ORDER_DATE) ASC)
-            WITH SYNONYMS = ('累計売上', 'cumulative revenue', 'running total')
-            COMMENT = '累計売上（年順の累積合計）'
+            COMMENT = 'ロケーション1拠点当たりの平均売上（TOTAL_REVENUE ÷ UNIQUE_LOCATIONS）'
     )
 
     COMMENT = 'Tasty Bytes エグゼクティブアナリティクス用セマンティックビュー。注文データと顧客ロイヤルティデータを統合し、売上・注文・顧客行動を自然言語でクエリ可能。'
@@ -329,7 +315,6 @@ CREATE OR REPLACE SEMANTIC VIEW TB_101.SEMANTIC_LAYER.TASTY_BYTES_BUSINESS_ANALY
 - 年・月・四半期での集計には ORDER_YEAR / ORDER_MONTH / ORDER_QUARTER を使用すること。
 - 年月での集計やトレンド分析には ORDER_YEAR_MONTH を使用すること。
 - 直近 N 期間のような相対期間は ORDER_DATE に対して DATEADD / DATEDIFF を使用すること。
-- REVENUE_YOY_GROWTH_PCT / REVENUE_MOM_GROWTH_PCT / CUMULATIVE_REVENUE などの window function を含む metric を使う場合は、DIMENSIONS に ORDER_DATE を必ず含めること（ORDER_YEAR や ORDER_YEAR_MONTH と併用可）。
 
 ランキング・集計のルール:
 - ランキング系の質問では合計値や件数の降順でソートすること。
@@ -407,14 +392,6 @@ $$
                 DIMENSIONS CUSTOMER_LOYALTY.CUSTOMER_COUNTRY
                 METRICS CUSTOMER_LOYALTY.AVG_CUSTOMER_SALES, CUSTOMER_LOYALTY.LOYALTY_CUSTOMER_COUNT
             ) ORDER BY AVG_CUSTOMER_SALES DESC'
-        ),
-        revenue_yoy_growth AS (
-            QUESTION '年別の売上と前年比成長率は？'
-            SQL 'SELECT * FROM SEMANTIC_VIEW(
-                TB_101.SEMANTIC_LAYER.TASTY_BYTES_BUSINESS_ANALYTICS
-                DIMENSIONS ORDERS.ORDER_YEAR
-                METRICS ORDERS.TOTAL_REVENUE, ORDERS.REVENUE_YOY_GROWTH_PCT
-            ) ORDER BY ORDER_YEAR'
         )
     )
 
