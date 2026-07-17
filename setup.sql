@@ -749,6 +749,9 @@ GRANT USAGE ON COMPUTE POOL tb_compute_pool TO ROLE tb_dev;
 -- Cortex AI 関数の利用権限 (TB_DEV には既に付与済み)
 GRANT DATABASE ROLE SNOWFLAKE.CORTEX_USER TO ROLE tb_admin;
 GRANT DATABASE ROLE SNOWFLAKE.CORTEX_USER TO ROLE tb_data_engineer;
+-- USE AI FUNCTIONS はアカウントレベルの権限 (PUBLIC に付与されていない環境で必要)
+GRANT USE AI FUNCTIONS ON ACCOUNT TO ROLE tb_data_engineer;
+GRANT USE AI FUNCTIONS ON ACCOUNT TO ROLE tb_admin;
 
 -- ステージ・メタデータテーブルへのアクセス権限
 GRANT READ, WRITE ON STAGE tb_101.public.ai_playground_files TO ROLE tb_dev;
