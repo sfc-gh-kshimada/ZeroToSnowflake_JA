@@ -127,12 +127,27 @@ SELECT * FROM raw_pos.truck_details;
 ALTER WAREHOUSE my_wh SET warehouse_size = 'XLarge';
 
 /*
-    補足 - Adaptive Warehouse（Public Preview）
-    ウェアハウスサイズの選択が不要な Adaptive Warehouse が現在 Public Preview として提供されています。
+    補足 - Adaptive Compute（一般提供 / GA）
+    ウェアハウスサイズの選択が不要な Adaptive Compute が GA として提供されています。
     ワークロードに応じてコンピュートリソースを自動的に最適化するため、サイズ選択の手間がなくなります。
 
+    Adaptive Compute は「Adaptive Warehouse」を通じて利用します。
+    Adaptive Warehouse では以下の管理が不要になります。
+      - ウェアハウスサイズ (XSMALL, SMALL, MEDIUM ...)
+      - マルチクラスター設定
+      - Query Acceleration Service の設定
+      - 自動サスペンド / 自動レジューム のポリシー
+
+    作成例:
+      CREATE ADAPTIVE WAREHOUSE my_adaptive_wh;
+
+    既存の標準ウェアハウスからの変換例（ダウンタイムなし）:
+      ALTER WAREHOUSE my_wh SET warehouse_type = 'ADAPTIVE';
+
+    注意: Enterprise Edition 以上、かつ対応リージョンでのみ利用可能です。
+          対応リージョンは公式ドキュメントを参照してください。
+
     公式ドキュメント: https://docs.snowflake.com/ja/user-guide/warehouses-adaptive
-    参考記事: https://dev.classmethod.jp/articles/snowflake-try-adaptive-warehouse/
 */
 
 -- トラック別の売上を確認しましょう

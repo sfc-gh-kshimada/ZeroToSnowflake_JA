@@ -4,6 +4,27 @@ Version:      v2
 Copyright(c): 2025 Snowflake Inc. All rights reserved.
 ****************************************************************************************************/
 
+/*--
+ • リポジトリ URL（setup.sql の実行が終了し、Gitワークスペースを作成する際にそのままコピー & ペーストしてください）
+
+     https://github.com/sfc-gh-kshimada/ZeroToSnowflake_JA
+
+ • 実行順序に注意
+     このファイルを「すべて実行 (Run All)」した後に Git ワークスペースを作成してください。
+     本ファイルが Git 連携に必要な API 統合 git_api_integration を作成するため、
+     順序を逆にするとワークスペース作成に失敗します。
+
+ • Git ワークスペースの作成手順（Snowsight）
+     1. 左側メニューの Projects » Workspaces を開く
+     2. 画面上部の 「+ Add New」 をマウスオーバーし、最下部の 「Git Repository」 を選択
+     3. 以下を入力する
+          リポジトリ URL   : 上記 URL
+          ワークスペース名 : ZeroToSnowflake_JA
+          API 統合         : GIT_API_INTEGRATION
+          アクセス         : パブリックリポジトリ を選択
+     4. 「作成」 を選択し、リポジトリ内のファイルが表示されれば成功
+--*/
+
 USE ROLE sysadmin;
 
 -- セッションにクエリタグを設定する

@@ -26,6 +26,8 @@ Zero to Snowflake クイックスタートへようこそ！
  - Snowflake アカウントをお持ちでない場合は、[30日間無料トライアルアカウントにサインアップ](https://signup.snowflake.com/)してください。サインアップ時は Enterprise エディションを選択してください。[Snowflake クラウド/リージョン](https://docs.snowflake.com/ja/user-guide/intro-regions?_fsi=6tNBra0z&_fsi=6tNBra0z)はいずれでも構いません。
  - 登録後、アクティベーションリンクと Snowflake アカウント URL が記載されたメールが届きます。
 
+> **Edition について:** 自動分類・マスキングポリシー・行アクセスポリシーを扱う「Horizon によるガバナンス」の章は Enterprise Edition 以上が必要です。Standard で作成すると当該章が実行できません。
+
 ### 学習内容
 
   - **Vignette 1: Snowflake 入門:** 仮想ウェアハウス、キャッシュ、クローニング、タイムトラベルの基礎。
@@ -33,6 +35,8 @@ Zero to Snowflake クイックスタートへようこそ！
   - **Vignette 3: Horizon によるガバナンス:** ロール、分類、マスキング、行アクセスポリシーでデータを保護する方法。
   - **Vignette 4: Snowflake Cortex AI:** 実験、スケーラブルな分析、AI 支援開発、会話型ビジネスインテリジェンスのために Snowflake の包括的な AI 機能を活用する方法。
   - **Vignette 5: アプリとコラボレーション:** Snowflake マーケットプレイスを活用して、内部データをサードパーティデータセットで強化する方法。
+
+> 「（任意）」と記した節は、時間に余裕がある場合またはハンズオン後にご自身のペースでお試しいただけます。
 
 ### 構築するもの
 
@@ -51,6 +55,8 @@ Zero to Snowflake クイックスタートへようこそ！
 
 最初の SQL ファイルの作成方法、必要なセットアップコードの追加方法、および実行方法を説明します。
 
+> **実行順序に注意:** 必ず **ステップ 2 の `setup.sql` を先に実行**してから、ステップ 3 の Git ワークスペースを作成してください。`setup.sql` が Git 連携に必要な `GIT_API_INTEGRATION` を作成するため、順序を逆にするとワークスペース作成に失敗します。
+
 ### **ステップ 1 - セットアップ SQL ファイルの作成**
 
 まず、セットアップスクリプトを置く場所が必要です。
@@ -68,6 +74,27 @@ SQL ファイルができたので、セットアップ SQL を追加して実�
 3. **スクリプトの実行:** SQL ファイル内のすべてのコマンドを順次実行するには、エディタ左上にある **「Run All」** ボタンをクリックします。これにより、以降のビネットに必要なロール、スキーマ、ウェアハウスの作成などのセットアップ処理がすべて実行されます。
 
 ![./assets/create_a_worksheet.gif](./assets/create_a_worksheet.gif)
+
+> **「∨」→「すべて実行 (Run All)」を使用してください。** 1 文ずつ実行すると途中で止まり、以降の章が動作しません。
+
+### **ステップ 3 - Git ワークスペースの作成**
+
+`setup.sql` の実行が完了したら、各章の SQL やデータをまとめて取得できるよう、このリポジトリを Git ワークスペースとしてリンクします。
+
+1. Workspaces 画面上部の **+ Add New** をマウスオーバーして選択します。
+2. 最下部の **Git Repository**（Git ワークスペース）を選択します。
+3. 以下のパラメータを入力します。
+
+| 項目 | 入力値 |
+| --- | --- |
+| リポジトリ URL | `https://github.com/sfc-gh-kshimada/ZeroToSnowflake_JA` |
+| ワークスペース名 | `ZeroToSnowflake_JA` |
+| API 統合 | `GIT_API_INTEGRATION` |
+| アクセス | **パブリックリポジトリ** を選択 |
+
+4. **作成** を選択します。リポジトリ内のファイルがワークスペースに表示されれば成功です。
+
+このワークスペースを開くとリポジトリ同梱の `AGENTS.md` が自動的に読み込まれ、CoCo が本ハンズオンのオブジェクトを壊さないよう制御されます。
 
 ### **今後の作業について**
 
@@ -107,7 +134,7 @@ SQL ファイルができたので、セットアップ SQL を追加して実�
 
 ### SQL コードを取得して SQL ファイルに貼り付けます。
 
-**この[ファイル](https://github.com/sfc-gh-kshimada/ZeroToSnowflake_JA/blob/main/scripts/vignette-1.sql)の SQL コードをコピーして、Snowflake の新しい SQL ファイルに貼り付けて進めてください。SQL ファイルの最後まで到達したら、ステップ 10 - シンプルなデータパイプラインにスキップできます。**
+**この[ファイル](https://github.com/sfc-gh-kshimada/ZeroToSnowflake_JA/blob/main/scripts/vignette-1.sql)の SQL コードをコピーして、Snowflake の新しい SQL ファイルに貼り付けて進めてください。SQL ファイルの最後まで到達したら、「シンプルなデータパイプライン」の章に進んでください。**
 
 ### 仮想ウェアハウスと設定
 
@@ -179,7 +206,19 @@ Snowflake のウェアハウスは弾力性を持つよう設計されていま�
 ALTER WAREHOUSE my_wh SET warehouse_size = 'XLarge';
 ```
 
-> **補足 - Adaptive Warehouse（Public Preview）**: ウェアハウスサイズの選択が不要な Adaptive Warehouse が現在 Public Preview として提供されています。ワークロードに応じてコンピュートリソースを自動的に最適化するため、サイズ選択の手間がなくなります。詳細は[公式ドキュメント](https://docs.snowflake.com/ja/user-guide/warehouses-adaptive)および[参考記事](https://dev.classmethod.jp/articles/snowflake-try-adaptive-warehouse/)を参照してください。
+> **補足 - Adaptive Compute（一般提供 / GA）**: ウェアハウスサイズの選択が不要な **Adaptive Compute** が GA として提供されています。ワークロードに応じてコンピュートリソースを自動的に最適化するため、サイズ選択の手間がなくなります。
+>
+> Adaptive Compute は **Adaptive Warehouse** を通じて利用します。Adaptive Warehouse では、ウェアハウスサイズ、マルチクラスター設定、Query Acceleration Service の設定、自動サスペンド／レジュームのポリシーを管理する必要がなくなります。
+>
+> ```sql
+> -- 新規作成
+> CREATE ADAPTIVE WAREHOUSE my_adaptive_wh;
+>
+> -- 既存の標準ウェアハウスから変換（ダウンタイムなし）
+> ALTER WAREHOUSE my_wh SET warehouse_type = 'ADAPTIVE';
+> ```
+>
+> 利用には Enterprise Edition 以上、かつ対応リージョンであることが必要です。詳細は[公式ドキュメント](https://docs.snowflake.com/ja/user-guide/warehouses-adaptive)を参照してください。
 
 より大きなウェアハウスで、トラックブランドごとの総売上を計算するクエリを実行しましょう。
 
@@ -467,7 +506,7 @@ Snowsight のバジェットページを確認しましょう。
 
 ### SQL を取得して SQL ファイルに貼り付けます。
 
-**この[ファイル](https://github.com/sfc-gh-kshimada/ZeroToSnowflake_JA/blob/main/scripts/vignette-2-1.sql)の SQL を新しい SQL ファイルにコピーして貼り付け、Snowflake で手順に沿って進めてください。SQL ファイルの最後まで到達したら、ステップ 16 - Snowflake Cortex AI にスキップできます。**
+**この[ファイル](https://github.com/sfc-gh-kshimada/ZeroToSnowflake_JA/blob/main/scripts/vignette-2-1.sql)の SQL を新しい SQL ファイルにコピーして貼り付け、Snowflake で手順に沿って進めてください。SQL ファイルの最後まで到達したら、「CoCo in Snowsight でパイプラインを作ってみる（任意）」または「Horizon によるガバナンス」の章に進んでください。**
 
 ### 外部ステージの取り込み
 
@@ -747,7 +786,7 @@ Snowflake には Snowsight に統合された AI エージェント **CoCo (Cort
 
 ### 手順を取得します。
 
-**この[ファイル](https://github.com/sfc-gh-kshimada/ZeroToSnowflake_JA/blob/main/scripts/vignette-2-2.md)の手順に沿って、Snowsight の CoCo (Cortex Code) パネルで進めてください。SQL ファイルは不要です。完了したら、ステップ 16 - Snowflake Cortex AI にスキップできます。**
+**この[ファイル](https://github.com/sfc-gh-kshimada/ZeroToSnowflake_JA/blob/main/scripts/vignette-2-2.md)の手順に沿って、Snowsight の CoCo (Cortex Code) パネルで進めてください。SQL ファイルは不要です。完了したら、「Horizon によるガバナンス」の章に進んでください。**
 
 ## Horizon によるガバナンス
 ![./assets/governance_header.png](./assets/governance_header.png)
