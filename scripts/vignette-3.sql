@@ -4,7 +4,7 @@ Version:      v1.1
 Copyright(c): 2025 Snowflake Inc. All rights reserved.
 
 このスクリプトでは Snowflake Horizon を使った PII データ保護を体験します:
-  1. RBAC                — tb_data_steward カスタムロールを作成し最小権限を付与
+  1. RBAC                — tb_data_steward / us_analyst / ja_analyst ロールを作成し最小権限を付与
   2. 自動分類 & PII タグ — 分類プロファイルで PII カラムを自動検出・タグ付け
   3. Dynamic Masking      — pii タグに紐付くマスキングポリシーで列値を難読化
   4. Row Access Policy    — ロールごとに参照可能な国を制限
@@ -77,6 +77,28 @@ GRANT ROLE tb_data_steward TO USER IDENTIFIER($my_user);
 
 -- 付与結果の確認
 SHOW GRANTS TO ROLE tb_data_steward;
+
+-- アナリストロールの作成: 国別に参照範囲を制限するロール
+USE ROLE useradmin;
+CREATE ROLE IF NOT EXISTS us_analyst
+    COMMENT = 'Tasty Bytes 米国担当アナリスト';
+CREATE ROLE IF NOT EXISTS ja_analyst
+    COMMENT = 'Tasty Bytes 日本担当アナリスト';
+
+-- アナリストロールへの権限付与
+USE ROLE securityadmin;
+GRANT ROLE us_analyst TO ROLE sysadmin;
+GRANT ROLE ja_analyst TO ROLE sysadmin;
+GRANT USAGE ON DATABASE tb_101 TO ROLE us_analyst;
+GRANT USAGE ON DATABASE tb_101 TO ROLE ja_analyst;
+GRANT USAGE ON SCHEMA tb_101.raw_customer TO ROLE us_analyst;
+GRANT USAGE ON SCHEMA tb_101.raw_customer TO ROLE ja_analyst;
+GRANT SELECT ON TABLE tb_101.raw_customer.customer_loyalty TO ROLE us_analyst;
+GRANT SELECT ON TABLE tb_101.raw_customer.customer_loyalty TO ROLE ja_analyst;
+GRANT OPERATE, USAGE ON WAREHOUSE tb_analyst_wh TO ROLE us_analyst;
+GRANT OPERATE, USAGE ON WAREHOUSE tb_analyst_wh TO ROLE ja_analyst;
+GRANT ROLE us_analyst TO USER IDENTIFIER($my_user);
+GRANT ROLE ja_analyst TO USER IDENTIFIER($my_user);
 
 -- PII データの確認
 USE ROLE tb_data_steward;
@@ -271,6 +293,8 @@ DROP TAG IF EXISTS tb_101.governance.pii;
 -- カスタムロールの削除
 USE ROLE useradmin;
 DROP ROLE IF EXISTS tb_data_steward;
+DROP ROLE IF EXISTS us_analyst;
+DROP ROLE IF EXISTS ja_analyst;
 
 -- セカンダリーロールの設定を元に戻す（ユーザーのデフォルトは ALL）
 USE SECONDARY ROLES ALL;
