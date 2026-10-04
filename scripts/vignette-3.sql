@@ -143,7 +143,7 @@ CALL governance.tb_classification_profile!SET_TAG_MAP(
 -- customer_loyalty テーブルを自動分類 (実行に数秒かかります)
 CALL SYSTEM$CLASSIFY('tb_101.raw_customer.customer_loyalty', 'tb_101.governance.tb_classification_profile');
 
--- タグ付け結果の確認 (apply_method = AUTO となっていれば自動タグ付け成功)
+-- タグ付け結果の確認 (apply_method = CLASSIFIED となっていれば自動タグ付け成功)
 SELECT
     column_name,
     tag_database,
