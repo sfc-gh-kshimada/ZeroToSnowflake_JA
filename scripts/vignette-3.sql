@@ -4,7 +4,7 @@ Version:      v1.1
 Copyright(c): 2025 Snowflake Inc. All rights reserved.
 
 このスクリプトでは Snowflake Horizon を使った PII データ保護を体験します:
-  1. RBAC                — tb_data_steward と動作確認用 us_analyst / ja_analyst ロールを作成し最小権限を付与
+  1. RBAC                — tb_data_steward / us_analyst / ja_analyst ロールを作成し最小権限を付与
   2. 自動分類 & PII タグ — 分類プロファイルで PII カラムを自動検出・タグ付け
   3. Dynamic Masking      — pii タグに紐付くマスキングポリシーで列値を難読化
   4. Row Access Policy    — ロールごとに参照可能な国を制限
@@ -78,14 +78,14 @@ GRANT ROLE tb_data_steward TO USER IDENTIFIER($my_user);
 -- 付与結果の確認
 SHOW GRANTS TO ROLE tb_data_steward;
 
--- 動作確認用アナリストロールの作成（Section 3 のマスキング・Section 4 の行アクセス確認で使用）
--- us_analyst / ja_analyst: customer_loyalty を参照でき、Row Access Policy で国別に行が絞られる
+-- アナリストロールの作成: 国別に参照範囲を制限するロール
 USE ROLE useradmin;
 CREATE ROLE IF NOT EXISTS us_analyst
-    COMMENT = 'Tasty Bytes 米国担当アナリスト（Row Access Policy デモ用）';
+    COMMENT = 'Tasty Bytes 米国担当アナリスト';
 CREATE ROLE IF NOT EXISTS ja_analyst
-    COMMENT = 'Tasty Bytes 日本担当アナリスト（Row Access Policy デモ用）';
+    COMMENT = 'Tasty Bytes 日本担当アナリスト';
 
+-- アナリストロールへの権限付与
 USE ROLE securityadmin;
 GRANT ROLE us_analyst TO ROLE sysadmin;
 GRANT ROLE ja_analyst TO ROLE sysadmin;
