@@ -717,6 +717,14 @@ USE ROLE securityadmin;
 GRANT SELECT ON VIEW tb_101.semantic_layer.orders_v TO ROLE PUBLIC;
 GRANT SELECT ON VIEW tb_101.semantic_layer.customer_loyalty_metrics_v TO ROLE PUBLIC;
 
+-- us_analyst / ja_analyst: テーブル・ビュー作成後に参照権限を再付与
+-- （上部の GRANT 時点ではテーブル未作成のため ALL は効かず、またスキーマレベルの
+--   FUTURE GRANTS が存在するスキーマではデータベースレベルの FUTURE GRANTS が無視されるため）
+GRANT SELECT ON ALL TABLES IN DATABASE tb_101 TO ROLE us_analyst;
+GRANT SELECT ON ALL TABLES IN DATABASE tb_101 TO ROLE ja_analyst;
+GRANT SELECT ON ALL VIEWS IN DATABASE tb_101 TO ROLE us_analyst;
+GRANT SELECT ON ALL VIEWS IN DATABASE tb_101 TO ROLE ja_analyst;
+
 -- 参加者アカウントの設定 パート3
 USE ROLE ACCOUNTADMIN;
 
