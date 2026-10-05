@@ -595,6 +595,9 @@ CREATE OR REPLACE GIT REPOSITORY tb_101.public.ztsja_repo
 
 ALTER GIT REPOSITORY tb_101.public.ztsja_repo FETCH;
 
+-- SYSADMIN が Git リポジトリをステージとして参照できるように権限を付与
+GRANT READ ON GIT REPOSITORY tb_101.public.ztsja_repo TO ROLE sysadmin;
+
 USE ROLE sysadmin;
 
 -- Git リポジトリからのデータロード用内部ステージ
